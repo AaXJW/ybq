@@ -1,0 +1,269 @@
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ include file="/WEB-INF/jsp/taglibs.jsp" %>
+    
+  		<form action="${ctx}/registing.htm" method="post" name="inputForm" id="inputForm" 
+			data-bv-feedbackicons-valid="glyphicon glyphicon-ok"
+		    data-bv-feedbackicons-invalid="glyphicon glyphicon-remove"
+		    data-bv-feedbackicons-validating="glyphicon glyphicon-refresh">
+		    
+		    <div class="panel panel-default">
+			  <div class="panel-body">
+			  
+			  	<%--<div class="row form-group" style="text-align: center;">
+	  				<div class="btn-group" data-toggle="buttons">
+					  <label class="btn btn-success">
+					    <input type="radio" name="login-regist" id="login-regist1" autocomplete="off"> 登录
+					  </label>
+					  <label class="btn btn-success active">
+					    <input type="radio" name="login-regist" id="login-regist2" autocomplete="off" checked> 注册
+					  </label>
+					</div>
+	  			</div>
+			  
+			    --%>
+			    <c:if test="${not empty message}">
+					<div class="alert alert-danger alert-dismissible" role="alert">
+					  ${message}
+					  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true"></span></button>
+					</div>
+				</c:if>
+			    
+			    <div id="recommendertelCT" class="row form-group">
+	  				<div class="input-group" >
+					  <input type="text" class="form-control" id="recommendertel" name="recommendertel" placeholder="请输入推荐人手机号" value="${recommendertel }"
+						required data-bv-notempty="true" data-bv-notempty-message="推荐人手机号不能为空" aria-describedby="basic-addon1" data-bv-threshold="11"
+			   			data-bv-phone="true" data-bv-phone-country="CN" data-bv-phone-message="输入不是有效的手机号 " 
+					  data-bv-remote="true" data-bv-remote-url="${ctx}/hasUST.htm?id=${entity.id}" data-bv-remote-message="该推荐人不存在"  <c:if test="${not empty recommendertel }"> readonly="readonly"</c:if> />
+					  <span class="input-group-addon" id="basic-addon1"><i class="icon-tablet"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="telDiv" class="row form-group">
+	  				<div id="telCT" >
+		  				<div class="input-group">
+						  <input type="text" class="form-control" id="tel" name="tel" placeholder="请输入您的手机号" value="${tel }"
+							required data-bv-notempty-message="手机号不能为空" aria-describedby="basic-addon2"
+							data-bv-phone="true" data-bv-phone-country="CN" data-bv-phone-message="输入不是有效的手机号 " data-bv-threshold="11"
+						  data-bv-remote="true" data-bv-remote-url="${ctx}/hasMUT.htm" data-bv-remote-message="该手机号已被使用">
+						  <span class="input-group-addon" id="basic-addon2"><i class="icon-mobile-phone"></i></span>
+						</div>
+					</div>
+	  			</div>
+	  			
+	  			<div id="nameCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="name" name="name" placeholder="请输入您的姓名" value="${name }"
+						required data-bv-notempty-message="姓名不能为空" aria-describedby="basic-addon3">
+					  <span class="input-group-addon" id="basic-addon3"><i class="icon-user"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="idNumberDiv"  class="row form-group">
+	  				<div id="idNumberCT">
+		  				<div class="input-group">
+						  <input type="text" class="form-control" id="idNumber" name="idNumber" placeholder="请输入您的身份证号" value="${idNumber }"
+							required data-bv-notempty-message="身份证号不能为空" data-bv-threshold="18"
+							data-bv-remote="true" data-bv-remote-url="${ctx}/hasIdc.htm" data-bv-remote-message="该身份证号已经被注册" aria-describedby="basic-addon10">
+						  <span class="input-group-addon" id="basic-addon10"><i class="icon-credit-card"></i></span>
+						</div>
+	  				</div>
+	  			</div>
+	  			
+	  			<div id="lgpasswordCT" class="row form-group">
+					<div class="input-group">
+					  <input type="password" id="lgpassword" name="lgpassword" class="form-control" placeholder="请输入登录密码"
+				      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+				 		required data-bv-notempty-message="登录密码不能为空" id="basic-addon4">
+				 		<span class="input-group-addon" id="basic-addon4"><i class="icon-key"></i></span>
+					</div>
+				</div>
+				
+				<div id="relgpasswordCT" class="row form-group">
+					<div class="input-group">
+					  <input type="password" id="relgpassword" name="relgpassword" class="form-control" placeholder="请确认登录密码"
+				      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+				 		required data-bv-notempty-message="确认登录密码不能为空"
+				 		data-bv-identical="true" data-bv-identical-field="lgpassword" data-bv-identical-message="确认密码与登录密码不一样 "
+                            		data-bv-different="true" data-bv-different-field="tel" data-bv-different-message="密码不能与手机号相同" id="basic-addon5">
+				 		<span class="input-group-addon" id="basic-addon5"><i class="icon-key"></i></span>
+					</div>
+				</div>
+				
+				<div id="paypasswordCT" class="row form-group">
+					<div class="input-group">
+					  <input type="password" id="paypassword" name="paypassword" class="form-control" placeholder="请输入二级密码"
+				      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+				 		required data-bv-notempty-message="二级密码不能为空" id="basic-addon6">
+				 		<span class="input-group-addon" id="basic-addon6"><i class="icon-barcode"></i></span>
+					</div>
+				</div>
+				
+				<div id="repaypasswordCT" class="row form-group">
+					<div class="input-group">
+					  <input type="password" id="repaypassword" name="repaypassword" class="form-control" placeholder="请确认二级密码"
+				      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+				 		required data-bv-notempty-message="确认二级密码不能为空" id="basic-addon7"
+				 		data-bv-identical="true" data-bv-identical-field="paypassword" data-bv-identical-message="确认密码与二级密码不一样 "
+                            		data-bv-different="true" data-bv-different-field="tel" data-bv-different-message="密码不能与手机号相同">
+				 		<span class="input-group-addon" id="basic-addon7"><i class="icon-barcode"></i></span>
+					</div>
+				</div>
+				
+				<%-- <div id="levelsCT" class="row form-group">
+	  				<div class="input-group">
+	  					<select name="levels" id="levels" class="selectpicker" data-width="auto" title="请选择一个用户级别" required data-bv-notempty-message="请选择用户级别" aria-describedby="basic-addon8">
+	  						<c:choose>
+								 <c:when test="${not empty SYSTEM_PARAM}"> 
+								 	<c:forEach items="${SYSTEM_PARAM.levels }" var="var" varStatus="vs">
+			  							<option value="${vs.index }">${var.levelName }(${var.levelPrice })</option>
+			  						<</c:forEach>
+			  						</c:when>
+										<c:otherwise>
+											<!-- 暂无问题 -->
+										</c:otherwise>
+								</c:choose>
+	  					</select>
+					  <span class="input-group-addon" id="basic-addon8"><i class="icon-sitemap"></i></span>
+					</div>
+	  			</div> --%>
+	  			
+	  			<div id="quesionCT" class="row form-group">
+	  				<div class="input-group">
+	  					<select name="question" id="question" class="selectpicker" data-width="auto" title="请选择一个问题" required data-bv-notempty-message="请选择一个密保问题" aria-describedby="basic-addon9">
+	  						<c:choose>
+								 <c:when test="${not empty SYSTEM_PARAM}"> 
+								 	<c:forEach items="${SYSTEM_PARAM.quesion }" var="var" varStatus="vs">
+								 		<c:choose>
+								 			<c:when test="${var==question}">
+								 				<option selected="selected">${var}</option>
+								 			</c:when>
+								 			<c:otherwise>
+								 				<option>${var}</option>
+								 			</c:otherwise>
+								 		</c:choose>			  							
+			  						<</c:forEach>
+			  						</c:when>
+										<c:otherwise>
+											<!-- 暂无问题 -->
+										</c:otherwise>
+								</c:choose>
+	  					</select>
+					  <span class="input-group-addon" id="basic-addon9"><i class="icon-question-sign"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="answerCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="answer" name="answer" placeholder="请输入密保答案" value="${answer}"
+						required data-bv-notempty-message="密保答案不能为空" aria-describedby="basic-addon11">
+					  <span class="input-group-addon" id="basic-addon11"><i class="icon-book"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<%-- <div id="accountCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="account" name="account" placeholder="请输入您的银行卡号" value="${account}"
+						required data-bv-notempty-message="银行卡号不能为空" aria-describedby="basic-addon12">
+					  <span class="input-group-addon" id="basic-addon12"><i class="icon-credit-card"></i></span>
+					</div>
+	  			</div>
+	  			<div id="bankBranchCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="bankBranch" name="bankBranch" placeholder="请输入开卡银行支行信息" value="${bankBranch}"
+						required data-bv-notempty-message="开卡银行支行信息不能为空" aria-describedby="basic-addon10">
+					  <span class="input-group-addon" id="basic-addon10"><i class="glyphicon glyphicon-map-marker"></i></span>
+					</div>
+	  			</div> --%>
+	  			<%-- <div id="weixinCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="weixin" name="weixin" placeholder="请输入您的微信账号" value="${weixin}"
+						aria-describedby="basic-addon13">
+					  <span class="input-group-addon" id="basic-addon13"><i class="icon-comments-alt"></i></span>
+					</div>
+	  			</div> --%>
+	  			<%-- <div id="TPACT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="thirdPlatformAccount" name="thirdPlatformAccount" placeholder="请输入您的消费平台账号" value="${thirdPlatformAccount}"
+						aria-describedby="basic-addon13">
+					  <span class="input-group-addon" id="basic-addon13"><i class="icon-comments-alt"></i></span>
+					</div>
+	  			</div> --%>
+	  			<%-- <div id="emailCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="email" class="form-control" id="email" name="email" placeholder="请输入您的邮箱账号" value="${email}"
+						aria-describedby="basic-addon14" data-bv-emailAddress-message="请输入有效的邮箱账号">
+					  <span class="input-group-addon" id="basic-addon14"><i class="icon-envelope-alt"></i></span>
+					</div>
+	  			</div> --%>
+	  			
+	  			<div id="vcodeCT" class="row form-group vcode-group">
+					<div class="input-group">
+					  <input type="text" class="form-control" placeholder="验证码不能为空"
+						required data-bv-notempty-message="请输入验证码" id="vcode" name="vcode" aria-describedby="basic-addon3">
+					  <span class="input-group-addon" id="basic-addon3" style="padding: 0;border-left: none;"><img id="vmcode" height="30" src="${ctx }/code.htm" onclick="refreshCode()"/></span>
+					  <span class="input-group-btn">
+				        <button class="btn btn-info" type="button" onclick="refreshCode()"><i class="glyphicon glyphicon-refresh"></i></button>
+				      </span>
+					</div>
+				</div>
+				
+				
+				<%-- <div  class="row form-group vcode-group">
+					<label>
+						<input type="checkbox" name="agreement_confirm" id="agreement_confirm" checked="checked" />
+						我已经认真阅读<a href="javascript:viewAgreements();">《${SYSTEM_PARAM.agreementsTitle }》</a>且无异议
+					</label>
+					
+				</div> --%>
+				
+				<div class="hidden" id="agreements">
+					${SYSTEM_PARAM.agreements }
+				</div>
+			  </div>
+			</div>
+		    
+	    </form>
+	    
+	    <script>
+			function refreshCode(){
+				$("#vmcode").attr("src","${ctx}/code.htm?t="+new Date().getTime());
+			}
+			
+			$(function(){
+				
+				//<button type="submit" class="btn btn-success col-xs-12 submit"><i class="icon-circle-arrow-right icon-2x"></i></button>
+				$("#inputForm").bootstrapValidator({
+					fields:{
+						idNumber:{
+		    				validators:{
+		    					regexp:{
+		    						regexp : /^(^[1-9]\d{7}((0\d)|(1[0-2]))(([0|1|2]\d)|3[0-1])\d{3}$)|(^[1-9]\d{5}[1-9]\d{3}((0\d)|(1[0-2]))(([0|1|2]\d)|3[0-1])((\d{4})|\d{3}[Xx])$)$/,
+									message : "请输入正确的身份证码号"
+		    					}
+		    				}
+		    			}
+		    		}
+				});
+				
+				$("input[name='login-regist']").change(function(){
+					top.location="${ctx}/login.htm";
+				});
+				$("#levels").val("${levels}");
+				//$("#quesion").val("${quesion}");
+				
+				$("#agreement_confirm").change(function(){
+					if(this.checked){
+						$("button[type='submit']").removeAttr("disabled");
+					}else{
+						$("button[type='submit']").attr("disabled","disabled");
+					}
+				});
+			});
+			
+			
+			function viewAgreements(){
+	  			var content=$($("#agreements").html());
+				
+				$.alertOpen({content:content,title:"${SYSTEM_PARAM.agreementsTitle }",height:400});
+	  		}
+		</script>

@@ -1,0 +1,378 @@
+package com.ybt.base.entity;
+
+import java.util.Date;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+import com.jiufengxinxi.core.entity.BusinessStringIdEntity;
+
+
+/**
+ * 用户 
+ * @author roger
+ *
+ */
+@Entity
+@Table(name="T_YW_MEMBER")
+public class Member extends BaseStringEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3143769098871091796L;
+
+	private String name;
+	
+	private String memberCode;
+	
+	private String weixin;
+	
+	private String email;
+	
+	private String idNumber;//身份证号
+	
+	private String tel;
+	
+	private String recommenderId;
+	
+	private String recommendertel;
+	
+	private int levels;
+	
+	private double levelsFee;
+	
+	private String levelsName;
+	
+	private double bonus;//积分可提现
+	
+	private double balance;//余额
+	
+	private int state;//0申请中，1正式用户
+	
+	private int territoryState=0;//版图状态:0未开始团购，1第一次团购，2失业(团购成功)，3复投中
+	
+	private int territoryCount=0;//团购次数
+	
+	private Date lastTerritoryTime;
+	
+	private String lgpassword;
+	
+	private String paypassword;
+	
+	private String seqCode;//
+	
+	private String lastloginIp;
+	
+	private Date lastloginTime;
+	
+	private int loginTimes=0;
+	
+	private String question;
+	
+	private String answer;
+	
+	private boolean admin;
+	
+	private boolean areaProxy;//代理
+	
+	private String userQRCode;
+	
+	private String recommendertels;
+	
+	private String account;//银行账号
+	
+	private String bankBranch;//银行支行信息
+	
+	private String thirdPlatformAccount;//消费平台账号
+	
+	private String areaTop;//所属区
+	
+	private String recommenderName;
+	
+	private Long proxyArea;//
+	
+	
+	
+	public Long getProxyArea() {
+		return proxyArea;
+	}
+
+	public void setProxyArea(Long proxyArea) {
+		this.proxyArea = proxyArea;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public String getMemberCode() {
+		return memberCode;
+	}
+
+	public void setMemberCode(String memberCode) {
+		this.memberCode = memberCode;
+	}
+
+	public String getIdNumber() {
+		return idNumber;
+	}
+
+	public void setIdNumber(String idNumber) {
+		this.idNumber = idNumber;
+	}
+
+	public String getTel() {
+		return tel;
+	}
+
+	public void setTel(String tel) {
+		this.tel = tel;
+	}
+
+	public String getRecommenderId() {
+		return recommenderId;
+	}
+
+	public void setRecommenderId(String recommenderId) {
+		this.recommenderId = recommenderId;
+	}
+
+	public int getLevels() {
+		return levels;
+	}
+
+	public void setLevels(int levels) {
+		this.levels = levels;
+	}
+
+	public double getBonus() {
+		return bonus;
+	}
+
+	public void setBonus(double bonus) {
+		this.bonus = bonus;
+	}
+
+	public double getBalance() {
+		return balance;
+	}
+
+	public void setBalance(double balance) {
+		this.balance = balance;
+	}
+
+	public int getState() {
+		return state;
+	}
+
+	public void setState(int state) {
+		this.state = state;
+	}
+
+	public String getWeixin() {
+		return weixin;
+	}
+
+	public void setWeixin(String weixin) {
+		this.weixin = weixin;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getLgpassword() {
+		return lgpassword;
+	}
+
+	public void setLgpassword(String lgpassword) {
+		this.lgpassword = lgpassword;
+	}
+
+	public String getPaypassword() {
+		return paypassword;
+	}
+
+	public void setPaypassword(String paypassword) {
+		this.paypassword = paypassword;
+	}
+
+	public String getSeqCode() {
+		return seqCode;
+	}
+
+	public void setSeqCode(String seqCode) {
+		this.seqCode = seqCode;
+	}
+
+	public String getLastloginIp() {
+		return lastloginIp;
+	}
+
+	public void setLastloginIp(String lastloginIp) {
+		this.lastloginIp = lastloginIp;
+	}
+
+	public Date getLastloginTime() {
+		return lastloginTime;
+	}
+
+	public void setLastloginTime(Date lastloginTime) {
+		this.lastloginTime = lastloginTime;
+	}
+
+	public String getQuestion() {
+		return question;
+	}
+
+	public void setQuestion(String question) {
+		this.question = question;
+	}
+
+	public String getAnswer() {
+		return answer;
+	}
+
+	public void setAnswer(String answer) {
+		this.answer = answer;
+	}
+
+	public boolean isAdmin() {
+		return admin;
+	}
+
+	public void setAdmin(boolean admin) {
+		this.admin = admin;
+	}
+
+	public double getLevelsFee() {
+		return levelsFee;
+	}
+
+	public void setLevelsFee(double levelsFee) {
+		this.levelsFee = levelsFee;
+	}
+
+	public String getLevelsName() {
+		return levelsName;
+	}
+
+	public void setLevelsName(String levelsName) {
+		this.levelsName = levelsName;
+	}
+
+	public String getRecommendertel() {
+		return recommendertel;
+	}
+
+	public void setRecommendertel(String recommendertel) {
+		this.recommendertel = recommendertel;
+	}
+
+	public int getLoginTimes() {
+		return loginTimes;
+	}
+
+	public void setLoginTimes(int loginTimes) {
+		this.loginTimes = loginTimes;
+	}
+
+	public String getUserQRCode() {
+		return userQRCode;
+	}
+
+	public void setUserQRCode(String userQRCode) {
+		this.userQRCode = userQRCode;
+	}
+
+	public int getTerritoryState() {
+		return territoryState;
+	}
+
+	public void setTerritoryState(int territoryState) {
+		this.territoryState = territoryState;
+	}
+
+	public int getTerritoryCount() {
+		return territoryCount;
+	}
+
+	public void setTerritoryCount(int territoryCount) {
+		this.territoryCount = territoryCount;
+	}
+
+	public Date getLastTerritoryTime() {
+		return lastTerritoryTime;
+	}
+
+	public void setLastTerritoryTime(Date lastTerritoryTime) {
+		this.lastTerritoryTime = lastTerritoryTime;
+	}
+
+	public String getRecommendertels() {
+		return recommendertels;
+	}
+
+	public void setRecommendertels(String recommendertels) {
+		this.recommendertels = recommendertels;
+	}
+
+	public String getAccount() {
+		return account;
+	}
+
+	public void setAccount(String account) {
+		this.account = account;
+	}
+
+	public String getBankBranch() {
+		return bankBranch;
+	}
+
+	public void setBankBranch(String bankBranch) {
+		this.bankBranch = bankBranch;
+	}
+
+	public String getThirdPlatformAccount() {
+		return thirdPlatformAccount;
+	}
+
+	public void setThirdPlatformAccount(String thirdPlatformAccount) {
+		this.thirdPlatformAccount = thirdPlatformAccount;
+	}
+
+	public String getAreaTop() {
+		return areaTop;
+	}
+
+	public void setAreaTop(String areaTop) {
+		this.areaTop = areaTop;
+	}
+
+	public String getRecommenderName() {
+		return recommenderName;
+	}
+
+	public void setRecommenderName(String recommenderName) {
+		this.recommenderName = recommenderName;
+	}
+
+	public boolean isAreaProxy() {
+		return areaProxy;
+	}
+
+	public void setAreaProxy(boolean areaProxy) {
+		this.areaProxy = areaProxy;
+	}
+	
+	
+}

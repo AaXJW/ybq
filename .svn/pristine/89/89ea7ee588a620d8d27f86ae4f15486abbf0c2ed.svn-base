@@ -1,0 +1,60 @@
+package com.ybt.web.controller;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.test.InsertAccess;
+import com.ybt.web.util.Constants;
+
+@Controller
+@RequestMapping(value="/")
+public class IndexController {
+	
+	@Resource
+	private InsertAccess insertAccess;
+	
+	@Resource
+	private IFundFlowService fundFlowService;
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IMessageService messageService;
+	
+	@RequestMapping(value="index")
+	public ModelAndView index(HttpServletRequest request,HttpServletResponse response){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("index");
+		//insertAccess.insertBylevels(5);
+		//推荐人数
+		long recommendCount = memberService.getCountUserByrecommendertel(member.getTel());
+		//总提现
+		double sumcashMoney = fundFlowService.sumCashMoney(member.getId());
+		//现金钱包
+		double balance = member.getBalance();
+		//奖金
+		double bonus = member.getBonus();
+		//总资产
+		double totalAssets = balance + bonus;
+		//最近5条消息
+		mv.addObject("lists", messageService.getTopFiveMessagesByReciver(member.getTel()));
+		mv.addObject("recommendCount", recommendCount);
+		mv.addObject("sumcashMoney", sumcashMoney);
+		mv.addObject("balance", balance);
+		mv.addObject("bonus", bonus);
+		mv.addObject("totalAssets", totalAssets);
+		return mv;
+	}
+	
+}

@@ -1,0 +1,55 @@
+package com.ybt.base.service;
+
+import java.util.Date;
+import java.util.List;
+
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.Member;
+
+public interface IApprovalService extends IGeneralService<Approval> {
+	
+	public boolean applyApproval(Member user,int applyType,Long territoryAreaId,double amount,String remark);
+
+	
+	/**
+	 * 支付操作
+	 * @param id
+	 * @param opraterId
+	 * @return
+	 */
+	public boolean payApproval(String id,String opraterId);
+	
+	/**
+	 * 审核操作
+	 * @param id
+	 * @param pass
+	 * @return
+	 */
+	public boolean approval(String id,boolean pass);
+	
+	/**
+	 * 重新发起申请
+	 * @param user
+	 * @param applyType
+	 * @param amount
+	 * @param remark
+	 * @return
+	 */
+	public boolean reApplyApproval(String id);
+	
+	
+	/**
+	 * 获取正在申请中的提现积分
+	 * @param userId
+	 * @return
+	 */
+	public double sumApplyingbonusByUserId(String userId);
+	
+	public List getOutTimeApply();
+	
+	public long apCount(String userId,Integer[] type,String[] state);
+	
+	public Double sumIntegralByStartDate(Date monthFirst, int type);
+	
+}

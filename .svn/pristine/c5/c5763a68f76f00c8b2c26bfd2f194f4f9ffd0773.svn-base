@@ -1,0 +1,65 @@
+package org.sitemesh.content.tagrules.decorate;
+
+import java.io.IOException;
+
+import org.sitemesh.SiteMeshContext;
+import org.sitemesh.content.Content;
+import org.sitemesh.content.ContentProperty;
+import org.sitemesh.content.memory.InMemoryContent;
+import org.sitemesh.content.tagrules.decorate.SiteMeshDecorateRule.Holder;
+import org.sitemesh.tagprocessor.BasicBlockRule;
+import org.sitemesh.tagprocessor.Tag;
+
+public class SiteMeshDecorateRule extends BasicBlockRule<Holder> {
+	private final SiteMeshContext siteMeshContext;
+
+	static class Holder {
+		public final Content content = new InMemoryContent();
+		public String decoratorName;
+	}
+
+	public SiteMeshDecorateRule(SiteMeshContext siteMeshContext) {
+		this.siteMeshContext = siteMeshContext;
+	}
+
+	protected Holder processStart(Tag tag) throws IOException {
+		this.tagProcessorContext.pushBuffer();
+
+		Holder holder = new Holder();
+		int i = 0;
+		for (int count = tag.getAttributeCount(); i < count; i++) {
+			String name = tag.getAttributeName(i);
+			String value = tag.getAttributeValue(i);
+			if (name.equals("decorator")) {
+				holder.decoratorName = value;
+			} else {
+				((ContentProperty) holder.content.getExtractedProperties()
+						.getChild(name)).setValue(value);
+			}
+		}
+		return holder;
+	}
+
+	protected void processEnd(Tag tag, Holder holder) throws IOException {
+		CharSequence body = this.tagProcessorContext.currentBufferContents();
+		this.tagProcessorContext.popBuffer();
+
+		holder.content.getData().setValue(body);
+
+		((ContentProperty) holder.content.getExtractedProperties().getChild(
+				"body")).setValue(body);
+		if (holder.decoratorName == null) {
+			this.tagProcessorContext.currentBuffer().append(body);
+			return;
+		}
+		Content decorated = this.siteMeshContext.decorate(holder.decoratorName,
+				holder.content);
+		if (decorated != null) {
+			((ContentProperty) decorated.getExtractedProperties().getChild(
+					"body")).writeValueTo(this.tagProcessorContext
+					.currentBuffer());
+		} else {
+			this.tagProcessorContext.currentBuffer().append(body);
+		}
+	}
+}

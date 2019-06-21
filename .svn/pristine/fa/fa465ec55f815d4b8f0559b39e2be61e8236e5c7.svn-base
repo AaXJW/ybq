@@ -1,0 +1,132 @@
+package com.ybt.web.controller.manager;
+
+import java.util.Date;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.entity.JsonResult;
+import com.jiufengxinxi.core.enums.EAclLevel;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.TerritoryArea;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.ITerritoryAreaService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.AppUtil;
+import com.ybt.web.util.Constants;
+import com.ybt.web.util.UserUtil;
+
+@Controller
+@RequestMapping(value="/manager/territoryArea")
+public class TerritoryAreaManagerController extends SimpleController  {
+	
+	@Resource
+	private ITerritoryAreaService territoryAreaService;
+
+	@Resource
+	private IMemberService memberService;
+	
+	@RequestMapping(value="list",description="代理列表")
+	public ModelAndView list(String mtype,Date startDate,Date endDate){		
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/territoryArea/list");
+		return mv;		
+	}
+	
+	@RequestMapping(value="pageFromTerritoryArea",description="代理加载列表")
+	public ModelAndView pageFromTerritoryArea(String mtype,Date startDate,Date endDate,int currentPage){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/territoryArea/load");
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		if(startDate!=null){
+			filters.addFilter("addTime", startDate,MatchType.GE);
+			mv.addObject("startDate",startDate);
+		}
+		if(endDate!=null){
+			filters.addFilter("addTime", endDate,MatchType.LE);
+			mv.addObject("endDate",endDate);
+		}
+		
+		Page<TerritoryArea> page=new Page<TerritoryArea>();
+		page.setCurrentPage(currentPage);
+		page.setPageSize(10);
+		page.setOrderBy("addTime");
+		page.setOrder("desc");
+		//List<Message> list = messageService.findByFilters(filters);	
+		page=territoryAreaService.findPagesByFilters(page, filters);
+		mv.addObject("page", page);
+		return mv;
+	}
+	
+	@RequestMapping(value="create",description="创建代理")
+	public ModelAndView create(){		
+		
+		return edit(null);		
+	}
+	
+	@RequestMapping(value="edit",description="编辑代理")
+	public ModelAndView edit(Long id){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/territoryArea/edit");
+		TerritoryArea territoryArea=null;
+		if(id==null){
+			territoryArea=new TerritoryArea();
+		}else{
+			territoryArea=territoryAreaService.findById(id);
+		}
+		mv.addObject("territoryArea", territoryArea);
+		return mv;		
+	}
+	
+	
+	@RequestMapping(value="save",description="保存代理")
+	public ModelAndView save(HttpServletRequest request,RedirectAttributes redirectAttributes,Long territoryAreaid){		
+		ModelAndView mv = new ModelAndView(Constants.REDIRECT+"/manager/territoryArea/list.htm");
+		TerritoryArea territoryArea=null;
+		
+		if(territoryAreaid==null){
+			territoryArea=new TerritoryArea();
+		}else{
+			territoryArea=territoryAreaService.findById(territoryAreaid);
+		}
+		this.bindValidateRequestEntity(request, territoryArea);
+		addOrModifyUserInfo(request, territoryArea);
+		territoryArea.setProxyArea(UserUtil.getCurrentUser(request).getProxyArea());
+		territoryAreaService.save(territoryArea);
+
+		redirectAttributes.addFlashAttribute(MESSAGE_NAME, "保存成功");
+		return mv;		
+	}
+	
+	@RequestMapping(value="default",description="设置默认")
+	public ModelAndView setDefault(long id) {
+		ModelAndView mv = new ModelAndView(Constants.REDIRECT+"/manager/territoryArea/list.htm");
+		
+		territoryAreaService.setDefault(id);
+		
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="hasTerritoryAreaCode",description="检验代理编号",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object hasTerritoryAreaCode(String id,String TerritoryAreaCode,String old){
+		try{
+			if(territoryAreaService.isUnique(old, "TerritoryAreaCode", TerritoryAreaCode)){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+}

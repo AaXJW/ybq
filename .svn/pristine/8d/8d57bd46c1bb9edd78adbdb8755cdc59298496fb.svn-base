@@ -1,0 +1,88 @@
+package com.ybt.web.util;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.commons.ServicesFactory;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Message;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+
+public class MessageUtil {
+
+	private static IMemberService memberService=ServicesFactory.getBean(IMemberService.class);
+	private static IMessageService messageService=ServicesFactory.getBean(IMessageService.class);
+	
+	public static String createMessage(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Message entity,String returnUrl,String okurl){
+		Member sender = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		if(sender==null){
+			return "/login";
+		}	
+		redirectAttributes.addFlashAttribute("reciver", entity.getReciver());
+		redirectAttributes.addFlashAttribute("title", entity.getTitle());
+		redirectAttributes.addFlashAttribute("mtype", entity.getMtype());
+		redirectAttributes.addFlashAttribute("content", entity.getContent());
+		if(StringUtils.isEmpty(entity.getMtype())){
+			redirectAttributes.addFlashAttribute("message", "消息类别不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		if(entity.getMtype().equals("0")){
+			if(entity.getReciver()==null || memberService.findUniqueByProperty("tel", entity.getReciver())==null){
+				redirectAttributes.addFlashAttribute("message", "接收人账号不存在");
+				return Constants.REDIRECT+returnUrl;
+			}
+		}		
+		if(StringUtils.isEmpty(entity.getTitle())){
+			redirectAttributes.addFlashAttribute("message", "消息标题不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		if(StringUtils.isEmpty(entity.getContent())){
+			redirectAttributes.addFlashAttribute("message", "消息内容不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		try{
+			entity.setProxyArea(sender.getProxyArea());
+			entity.setSender(sender.getName());
+			entity.setState("0");
+			messageService.save(entity);
+			redirectAttributes.addFlashAttribute("message", "保存消息成功");
+		}catch(Exception e){
+			e.printStackTrace();
+			redirectAttributes.addFlashAttribute("message", "保存消息失败");
+			return Constants.REDIRECT+returnUrl;
+		}		
+		return Constants.REDIRECT+okurl;
+	}
+	
+	public static Map<String,String> madeMessageContent(Approval approval,boolean pass){
+		Map<String,String> map = new HashMap<String,String>();
+		String title = approval.getSmallTitle()+"申请审核结果反馈";
+		String content =null;
+		String result = (pass)?"已通过":"未通过";
+		String civilities =(pass)?"恭喜":"对不起";
+		switch(approval.getApprovalType()){
+			case 0: {
+				content= civilities+"，您的"+title+"申请"+result+"平台审核";
+			}break;
+			case 1: {
+				content= civilities+"，您的一笔金额为"+approval.getApprovalMoney()+"元("+approval.getApprovalIntegral()+"积分)的提现申请"+result+"平台审核";
+			}break;
+			case 2: {
+				content= civilities+"，您的一笔金额为"+approval.getApprovalMoney()+"元("+approval.getApprovalIntegral()+"积分)的充值申请"+result+"平台审核";
+			}break;
+		}
+		map.put("title", title);
+		map.put("content", content);
+		return map;
+	}
+	
+}

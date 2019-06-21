@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+			http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd" default-lazy-init="true">
+	<!-- 注册 DefaultAnnotationHandlerMapping 和AnnotationMethodHandlerAdapter两个bean -->
+	<mvc:annotation-driven validator="validator" conversion-service="conversionService" >
+		<!-- 处理请求时返回json字符串的中文乱码问题 -->
+         <mvc:message-converters>
+            <bean class="org.springframework.http.converter.StringHttpMessageConverter">
+                <property name="supportedMediaTypes">
+                    <list>
+                        <value>text/html;charset=UTF-8</value>
+                    </list>
+                </property>
+            </bean>
+        </mvc:message-converters>
+	</mvc:annotation-driven>
+
+	<!-- 将spring mvc的DispatcherServlet替换当前web server的缺省的Servlet -->
+	<mvc:default-servlet-handler />
+	
+	<!-- 自动扫描且只扫描@Controller -->
+	<context:component-scan base-package="com.ybt" use-default-filters="false">
+		<context:include-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+	</context:component-scan>
+<!--  	<context:component-scan base-package="com.json" />	 -->
+	
+	<!-- 定义JSP视图解释器--> 
+	<bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<property name="viewClass" value="org.springframework.web.servlet.view.JstlView"/>
+		<property name="order" value="1" />
+		<property name="cache" value="false" />
+		<property name="prefix" value="/WEB-INF/templates/"/>
+		<property name="suffix" value=".jsp"/>
+	</bean>
+    <!-- 校验 -->
+	<bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+		<property name="providerClass" value="org.hibernate.validator.HibernateValidator"/>
+		<property name="validationMessageSource" ref="validationMessageSource" />
+	</bean>
+
+    <!-- 全局数据转换 -->
+    <bean id="conversionService" class="org.springframework.format.support.FormattingConversionServiceFactoryBean">
+    	<property name="converters">
+    		<list>
+    			<bean class="com.ybt.web.converter.CustomStringToDateConverter" />
+    			<bean class="com.ybt.web.converter.StringToEnumConverterFactory" />
+    			
+    			<!-- <bean class="com.jiufengxinxi.system.web.converter.CustomDateToStringConverter" /> -->
+    		</list>
+    	</property>
+    </bean>
+
+
+    <!-- 国际化定义 -->
+    <!-- 
+    <bean id="localeResolver" class="org.springframework.web.servlet.i18n.AcceptHeaderLocaleResolver"></bean>
+     -->
+    <bean id="localeResolver" class="org.springframework.web.servlet.i18n.SessionLocaleResolver">
+    	<property name="defaultLocale" value="zh_CN" />
+    </bean>
+    
+    
+	<!-- 验证提示信息 -->
+    <bean id="validationMessageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+        <property name="basenames">
+        	<list>
+        		<value>classpath:validmessages</value>
+        		<value>classpath:org/hibernate/validator/ValidationMessages</value>
+        	</list>
+        </property>
+        <property name="defaultEncoding" value="UTF-8"/>
+    	<property name="cacheSeconds" value="60"/>
+    </bean>
+    
+    <!-- 页面国际化信息 -->
+    <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+        <property name="basenames">
+        	<list>
+        		<value>classpath:globalMessages</value>
+        	</list>
+        </property>
+        <property name="defaultEncoding" value="UTF-8"/>
+    	<property name="useCodeAsDefaultMessage" value="true" />
+    </bean>
+    
+	<!-- 默认拦截器 -->
+	<mvc:interceptors>
+	     <bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor"/>
+	</mvc:interceptors>
+	
+	<!-- 文件上传设置  -->
+	<bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<property name="defaultEncoding" value="UTF-8"/> <!-- 默认编码 (ISO-8859-1) -->
+		<property name="maxInMemorySize" value="4096"/> <!-- 最大内存大小 (10240)-->
+   		<property name="maxUploadSize" value="104857600"/> <!-- 以字节为单位的最大上传文件的大小,最大文件大小，-1为无限止(-1) -->
+   		<!-- <property name="uploadTempDir" value="/upload/"/> 上传后的目录名 -->
+	</bean>
+    
+    <!-- 异常处理 -->
+    <bean id="exceptionResolver" class="com.ybt.web.resolver.ExceptionResolver"></bean>
+    
+	
+</beans>

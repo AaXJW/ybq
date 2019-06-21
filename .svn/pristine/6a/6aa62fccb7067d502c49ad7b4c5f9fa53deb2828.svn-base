@@ -1,0 +1,19 @@
+package com.ybt.base.dao.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.dao.impl.EntityDaoSupport;
+import com.ybt.base.dao.IMessageDao;
+import com.ybt.base.entity.Message;
+
+@Service
+@Transactional
+public class MessageDao extends EntityDaoSupport<Message, String> implements IMessageDao{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 3179172793009666195L;
+
+}

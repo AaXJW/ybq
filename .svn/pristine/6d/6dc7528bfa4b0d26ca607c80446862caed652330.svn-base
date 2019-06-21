@@ -1,0 +1,60 @@
+package com.ybt.web.controller.portal;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.jiufengxinxi.core.entity.JsonResult;
+import com.jiufengxinxi.core.enums.EAclLevel;
+import com.jiufengxinxi.utils.security.MD5;
+import com.ybt.base.entity.Member;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.AppUtil;
+import com.ybt.web.util.Constants;
+
+@Controller
+public class CommonsController extends SimpleController {
+
+	@RequestMapping(value="noauth")
+	public ModelAndView noauth(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("error/message");
+		mv.addObject("message", "您没有该权限");
+		return mv;
+	}
+	
+	@RequestMapping(value="message")
+	public ModelAndView message(HttpServletRequest request,HttpServletResponse response,String message){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("error/message");
+		mv.addObject("message", request.getAttribute("message")!=null?request.getAttribute("message"):message);
+		return mv;
+	}
+	
+	@RequestMapping(value="deploing")
+	public ModelAndView deploing(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("deploing");
+		return mv;
+	}
+	
+	@RequestMapping(value="validSecPass",description="校验二级密码",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object validSecPass(HttpServletRequest request,String password){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		String pas=MD5.encode(password);
+		return AppUtil.returnObject(member.getPaypassword().equals(pas)?JsonResult.success():JsonResult.fail());
+	}
+	
+	@RequestMapping(value="appDownload")
+	public ModelAndView appDownload(){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("appDownload");
+		return mv;
+	}
+	
+}

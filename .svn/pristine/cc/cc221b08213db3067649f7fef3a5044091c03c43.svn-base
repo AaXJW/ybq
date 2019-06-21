@@ -1,0 +1,15 @@
+package com.ybt.base.dao;
+
+import com.jiufengxinxi.core.dao.IEntityDaoSupport;
+import com.ybt.base.entity.UrlAuthority;
+
+/** 
+ * 说明： 权限控制DAO接口
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+public interface IUrlAuthorityDao extends IEntityDaoSupport<UrlAuthority, Long>{
+
+}
+

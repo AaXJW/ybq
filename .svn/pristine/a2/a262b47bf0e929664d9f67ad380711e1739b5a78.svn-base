@@ -1,0 +1,80 @@
+package com.ybt.base.entity;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+import com.jiufengxinxi.core.entity.BusinessLongIdEntity;
+
+
+@Entity
+@Table(name="T_YW_TERRITORY_AREA")
+public class TerritoryArea extends BusinessLongIdEntity{
+
+	/**
+	 * 区域名称
+	 */
+	private String areaName;
+
+	/**
+	 * 区域级别
+	 */
+	private int areaLevel;
+
+	/**
+	 * 门槛资金
+	 */
+	private double sillAmount;
+	
+	/**
+	 * 是否默认区域
+	 */
+	private boolean defaults;
+
+	/**
+	 * 区域logo
+	 */
+	private String logoIcon;
+
+	public String getAreaName() {
+		return areaName;
+	}
+
+	public void setAreaName(String areaName) {
+		this.areaName = areaName;
+	}
+
+	public int getAreaLevel() {
+		return areaLevel;
+	}
+
+	public void setAreaLevel(int areaLevel) {
+		this.areaLevel = areaLevel;
+	}
+
+	public double getSillAmount() {
+		return sillAmount;
+	}
+
+	public void setSillAmount(double sillAmount) {
+		this.sillAmount = sillAmount;
+	}
+
+	public boolean isDefaults() {
+		return defaults;
+	}
+
+	public void setDefaults(boolean defaults) {
+		this.defaults = defaults;
+	}
+
+	public String getLogoIcon() {
+		return logoIcon;
+	}
+
+	public void setLogoIcon(String logoIcon) {
+		this.logoIcon = logoIcon;
+	}
+	
+	
+	
+}

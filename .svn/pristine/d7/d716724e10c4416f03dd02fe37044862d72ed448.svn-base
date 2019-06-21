@@ -1,0 +1,15 @@
+package com.ybt.base.dao;
+
+import com.jiufengxinxi.core.dao.IEntityDaoSupport;
+import com.ybt.base.entity.ProxyArea;
+
+/** 
+ * 说明： 代理区DAO接口
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+public interface IProxyAreaDao extends IEntityDaoSupport<ProxyArea, Long>{
+
+}
+

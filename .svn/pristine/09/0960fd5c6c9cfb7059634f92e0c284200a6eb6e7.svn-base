@@ -1,0 +1,28 @@
+package com.ybt.base.service;
+
+import java.util.List;
+
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.Message;
+
+public interface IMessageService extends IGeneralService<Message>  {
+
+	//public List<Message> getPlatformMessages();
+	
+	public List<Message> getSelfMessage(String reciver);
+	
+	public List<Message> getMessage(String reciver,String mtype);
+	
+	public Message addSelfMessage(String reciver,String sender,String title,String content, String url,Long proxyAreaId);
+	
+	public Message addPlatformMessage(String reciver,String sender,String title,String content,String url);
+	
+	public Integer unreadCount(String tel);
+	
+	public boolean readedMesage(String id,String tel);
+	
+	public int makeSelfMessageHadReaded(String reciver);
+	
+	public List<Message> getTopFiveMessagesByReciver(String reciver);
+	
+}

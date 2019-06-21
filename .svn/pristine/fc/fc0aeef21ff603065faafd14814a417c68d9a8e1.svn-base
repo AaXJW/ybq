@@ -1,0 +1,57 @@
+package com.ybt.web.init;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Timer;
+import java.util.TimerTask;
+
+import javax.servlet.ServletContext;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.jiufengxinxi.core.commons.ServicesFactory;
+import com.ybt.base.entity.Parameters;
+import com.ybt.base.service.IParametersService;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.util.Constants;
+
+/**
+ * 
+ * @author jerry
+ *
+ */
+public class SystemInit implements IAppInitAware {
+	private Log log = LogFactory.getLog(SystemInit.class);
+	public void run(ServletContext servletContext) {
+		//初始化数据
+		IParametersService parametersService=ServicesFactory.getBean(IParametersService.class);
+		if(parametersService!=null){
+			Parameters param=parametersService.findUniqueByProperty("types", 0);
+			servletContext.setAttribute(Constants.SYSTEM_PARAM, param);
+			servletContext.setAttribute(Constants.UNREAD_MSE_PARAM, SystemParameters.unreadMSGMap);
+			SystemParameters.SYSTEM_PARAMETER=param;
+		}
+	}
+	
+	//计时器
+	public void timer() {
+		Calendar calendar = Calendar.getInstance();
+		calendar.set(Calendar.HOUR_OF_DAY, 9); // 控制时
+		calendar.set(Calendar.MINUTE, 0); 		// 控制分
+		calendar.set(Calendar.SECOND, 0); 		// 控制秒
+
+		Date time = calendar.getTime(); 		// 得出执行任务的时间
+
+		Timer timer = new Timer();
+		timer.scheduleAtFixedRate(new TimerTask() {
+			public void run() {
+				
+				//PersonService personService = (PersonService)ApplicationContext.getBean("personService");
+				
+				//System.out.println("-------设定要指定任务--------");
+			}
+		}, time, 1000*60*60*24);// 这里设定将延时每天固定执行
+	}
+	
+}

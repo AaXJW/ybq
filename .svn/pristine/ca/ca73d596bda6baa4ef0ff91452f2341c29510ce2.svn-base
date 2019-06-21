@@ -1,0 +1,22 @@
+package com.ybt.base.dao.impl;
+
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.dao.impl.EntityDaoSupport;
+import com.ybt.base.dao.IProxyAreaDao;
+import com.ybt.base.entity.ProxyArea;
+
+/** 
+ * 说明： 代理区DAO
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+@SuppressWarnings("serial")
+@Repository
+@Transactional
+public class ProxyAreaDao extends  EntityDaoSupport<ProxyArea, Long> implements IProxyAreaDao {
+
+}
+

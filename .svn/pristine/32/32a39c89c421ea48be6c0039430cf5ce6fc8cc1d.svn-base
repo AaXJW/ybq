@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sitemesh>
+    <!-- 指明满足“/*”的页面，将被“/WEB-INF/views/decorators/decorator.html”所装饰 -->
+    <mapping decorator="/WEB-INF/decorators/normal.jsp" />
+    <mapping path="/login.htm"  decorator="/WEB-INF/decorators/nobtbn.jsp" />
+    <mapping path="*/register.htm"  decorator="/WEB-INF/decorators/nobtbn.jsp" />
+    <mapping path="*/appDownload.htm"  decorator="/WEB-INF/decorators/nobtbn.jsp" />
+    <mapping path="/manager/*.htm"  decorator="/WEB-INF/decorators/manager.jsp"  />
+    <!-- 被排除，不被装饰 -->
+    <mapping path="*/has*.htm" exclue="true" />
+     <mapping path="/manager/*/has*.htm" exclue="true" />
+    <mapping path="*/valid*.htm" exclue="true" />
+    <mapping path="*/pageFrom*.htm" exclue="true" />
+    <mapping path="*/getFrom*.htm" exclue="true" />
+    <!-- <mapping path="/manager/*.htm" exclue="true" /> -->
+    
+    <content-processor>
+	     <tag-rule-bundle class="com.ybt.web.resolver.CustomTagRuleBundle" />
+   </content-processor>
+    
+</sitemesh>

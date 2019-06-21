@@ -1,0 +1,33 @@
+package com.ybt.web.controller;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IMemberService;
+import com.ybt.web.util.UserUtil;
+
+@Controller
+@RequestMapping(value="/manager/user/")
+public class UserManagerController {
+
+	@Resource
+	private IMemberService memberService;
+	
+	@RequestMapping(value="createUser")
+	public String createUser(){
+		return "manager/user/createUser";
+	} 
+	
+	@RequestMapping(value="saveUser")
+	public String saveUser(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Member member,String vcode,String repaypassword,String relgpassword){
+		member.setAddUserId("system");
+		return UserUtil.createUser(request, response, redirectAttributes, member, vcode, repaypassword, relgpassword, true, "/manager/user/createUser.htm", "/manager/index.htm");
+	}
+	
+}

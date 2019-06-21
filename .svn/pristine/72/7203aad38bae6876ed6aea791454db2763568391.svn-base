@@ -1,0 +1,531 @@
+package com.ybt.web.controller.manager;
+
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.alibaba.dubbo.common.utils.StringUtils;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.FundFlow;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Parameters;
+import com.ybt.base.entity.Territory;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.entity.vo.LevelsItem;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IParametersService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.utill.JsonMapper;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.init.InitSystemService;
+import com.ybt.web.util.Constants;
+import com.ybt.web.util.ObjectExcelView;
+import com.ybt.web.util.PageData;
+import com.ybt.web.util.UserUtil;
+
+@Controller
+@RequestMapping(value="/manager/")
+public class ManagerController extends SimpleController {
+	
+	@Resource
+	private IParametersService parametersService;
+	
+	@Resource
+	private IApprovalService approvalService;
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private ITerritoryService territoryService;
+	
+	@Resource
+	private IFundFlowService fundFlowService;
+	
+	@RequestMapping(value="index",description="管理平台首页")
+	public ModelAndView index(HttpServletRequest request){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/index");
+		Member member=UserUtil.getCurrentUser(request);
+		mv.addObject("proxyId", member.getProxyArea()!=null?member.getProxyArea():"null");
+		
+		mv.addObject("StatisticsData", SystemParameters.StatisticsData);
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="parameterSet",description="系统参数设置")
+	public ModelAndView parameterSet(){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/parameterSet");
+		
+		Parameters param=parametersService.findUniqueByProperty("types", 0);
+		
+		mv.addObject("entity", param==null?new Parameters():param);
+		
+		return mv;
+	}
+
+	
+	@RequestMapping(value="saveParameter",description="系统参数保存")
+	public String saveParameter(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Parameters entity,int levelSize,int quesionSize){
+		if(StringUtils.isEmpty(entity.getId())){
+			return Constants.REDIRECT+"/manager/parameterSet.htm";
+		}
+		Parameters param=parametersService.findById(entity.getId());
+		
+		if(param==null){
+			return Constants.REDIRECT+"/manager/parameterSet.htm";
+		}
+		
+		BeanUtils.copyProperties(entity, param, Parameters.class);
+		
+		List<LevelsItem> levels=new ArrayList<LevelsItem>();
+		for(int i=0;i<levelSize;i++){
+			String levelName=request.getParameter("levelName_"+(i+1));
+			String levelPrice=request.getParameter("levelPrice_"+(i+1));
+			if(StringUtils.isEmpty(levelName)||StringUtils.isEmpty(levelPrice)){
+				continue;
+			}
+			levels.add(new LevelsItem(levelName,Double.parseDouble(levelPrice)));
+		}
+		
+		param.setLevels(levels);
+		
+		List<String> quesions=new ArrayList<String>();
+		for(int i=0;i<quesionSize;i++){
+			String quesion= request.getParameter("quesion_"+(i+1));
+			if(StringUtils.isNotEmpty(quesion)){
+				quesions.add(quesion);
+			}
+		}
+		param.setQuesion(quesions);
+		
+		param=parametersService.save(param);
+		
+		if(param!=null){
+			InitSystemService.runInits(request.getSession().getServletContext());
+		}
+		
+		redirectAttributes.addFlashAttribute("message", "修改成功");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		
+		return Constants.REDIRECT+"/manager/parameterSet.htm";
+	}
+	
+	
+	@RequestMapping(value="approval",description="申请审核页")
+	public ModelAndView approval(int approvalType){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/approval");
+		String approvalTypeMc = (approvalType == 0)?"注册审批":(approvalType == 1)?"提现审批":"充值审批";
+		/*ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("approvalType", approvalType, MatchType.EQ);		
+		filters.setOrder("desc,desc");
+		filters.setOrderBy("state,addTime");
+		List<Approval> lists = approvalService.findByFilters(filters);
+		mv.addObject("approvals", lists);	*/
+		mv.addObject("approvalTypeMc", approvalTypeMc);
+		mv.addObject("approvalType", approvalType);
+		return mv;
+	}
+	
+	@RequestMapping(value="pageFromApproval",description="申请审核页")
+	public ModelAndView approvalPageList(HttpServletRequest request,int approvalType,String approvalStates,int currentPage){
+		Member member=UserUtil.getCurrentUser(request);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/approvalPage");
+		String approvalTypeMc = (approvalType == 0)?"注册审批":(approvalType == 1)?"提现审批":"充值审批";
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("approvalType", approvalType, MatchType.EQ);
+		filters.addFilter("state", Arrays.asList(approvalStates.split(",")), MatchType.IN);
+		
+		
+		if(member.getProxyArea()!=null){
+			filters.addFilter("proxyArea", member.getProxyArea(), MatchType.EQ);
+		}else{
+			filters.addFilter("proxyArea", MatchType.ISNULL);
+		}
+		
+		Page<Approval> pages=new Page<Approval>();
+		pages.setCurrentPage(currentPage);
+		pages.setOrder("desc,desc");
+		pages.setOrderBy("state,addTime");
+		pages.setPageSize(5);
+		pages=approvalService.findPagesByFilters(pages, filters);
+		//List<Approval> lists = approvalService.findByFilters(filters);
+		mv.addObject("page", pages);	
+		mv.addObject("approvalTypeMc", approvalTypeMc);
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="passApproval",description="审核通过")
+	public String passApproval(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,int approvalType,String id){
+		boolean result = approvalService.approval(id, true);
+		String message = result?"操作成功":"操作失败";	
+		redirectAttributes.addFlashAttribute("message", message);
+		redirectAttributes.addFlashAttribute("messageType", result?0:1);
+		redirectAttributes.addAttribute("id", id);
+		redirectAttributes.addAttribute("approvalType", approvalType);
+		return Constants.REDIRECT+"/manager/approval.htm";
+	}
+	
+	@RequestMapping(value="notPassApproval",description="审核不通过")
+	public String notPassApproval(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,int approvalType,String id){
+		boolean result = approvalService.approval(id, false);
+		String message = result?"操作成功":"操作失败";	
+		redirectAttributes.addFlashAttribute("message", message);
+		redirectAttributes.addFlashAttribute("messageType", result?0:1);
+		redirectAttributes.addAttribute("id", id);
+		redirectAttributes.addAttribute("approvalType", approvalType);
+		return Constants.REDIRECT+"/manager/approval.htm";
+	}
+	
+	
+	
+	@RequestMapping(value="territory",dataControl=true)
+	public ModelAndView territory(HttpServletRequest request,Integer level,Long id,Long firstId,Long cancelFirstId){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/team/territory");
+		//insertAccess.insertBylevels(6);
+		if(level==null){
+			level=5;
+		}
+		
+		if(level>SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()){
+			mv.addObject("message", "最大显示到第"+SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()+"层");
+			return mv;
+		}
+		
+		if(firstId!=null){
+			Territory teerr=territoryService.findById(firstId);
+			if(teerr!=null){
+				teerr.setPiid("1");
+				territoryService.save(teerr);
+			}
+		}
+		
+		if(cancelFirstId!=null){
+			Territory teerr=territoryService.findById(cancelFirstId);
+			if(teerr!=null){
+				teerr.setPiid(null);
+				territoryService.save(teerr);
+			}
+		}
+		
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		
+		Page<Territory> pageTerritory=new Page<Territory>();
+		ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+		lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+		lFilter.addFilter("depth", 0, MatchType.EQ);
+		
+		if(user.getProxyArea()!=null){
+			lFilter.addFilter("proxyArea", user.getProxyArea(), MatchType.EQ);
+		}else{
+			lFilter.addFilter("proxyArea", MatchType.ISNULL);
+		}
+		//lFilter.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+		pageTerritory.setOrderBy("depth");
+		pageTerritory.setOrder("asc");
+		pageTerritory.setPageSize(20);
+		
+		pageTerritory=territoryService.findPagesByFilters(pageTerritory, lFilter);
+		
+		if(pageTerritory.getTotalCount()==0){
+			mv.addObject("message", "未找到相应的团购网络图");
+			return mv;
+		}
+		
+		Territory ter=null;
+		
+		if(id==null){
+			id=pageTerritory.getResult().get(0).getId();
+		}else{
+			ter=territoryService.findById(id);
+		}/*else if(!tel.startsWith(user.getTel())){
+			//tel=tel.split("_")[0];
+			level=3;
+		}*/
+		
+		
+		
+		List<Map<String,Object>> terss=new ArrayList<Map<String,Object>>();
+		
+		
+		
+		for(Territory t : pageTerritory.getResult()){
+			if(ter==null&&t.getId()==id){
+				ter=t;
+			}
+			
+			Map<String,Object> m=new HashMap<String,Object>();
+			m.put("tel", t.getName());
+			m.put("id", t.getId());
+			terss.add(m);
+		}
+		
+		/*if(ter.getMember()!=null&&StringUtils.isNotEmpty(ter.getMember().getRecommendertels())&&!ter.getMember().getRecommendertels().contains(user.getTel())){
+			mv.addObject("message", "查询非当前用户下发节点");
+			return mv;
+		}*/
+		
+		JsonMapper jsonmapper=JsonMapper.nonEmptyMapper();
+		String pid=StringUtils.isNotEmpty(ter.getParentids())?ter.getParentids()+","+ter.getId():ter.getId().toString();
+		List<Territory> ters=territoryService.findByFilters(ListPropertyFilter.getInstance()
+				.addFilter(new String[]{"parentids","id"}, new Object[]{pid,ter.getId()}, new MatchType[]{MatchType.LIKER,MatchType.EQ})
+				.addFilter("supperTopTel", ter.getSupperTopTel(), MatchType.EQ)
+				.addFilter("depth", ter.getDepth()+level, MatchType.LT)
+				.setOrderBy("depth,index").setOrder("asc,asc"));
+		
+		List<Map<String,Object>> tersMaps=new ArrayList<Map<String,Object>>();
+		for(Territory te : ters){
+			Map<String,Object> teMap=new HashMap<String,Object>();
+			teMap.put("seatPrice", te.getSeatPrice());
+			teMap.put("state", te.getState());
+			teMap.put("placeholderTel", te.getPlaceholderTel());
+			teMap.put("name", te.getName());
+			teMap.put("userName", te.getUserName());
+			teMap.put("id", te.getId());
+			teMap.put("piid", te.getPiid());
+			teMap.put("parentId", te.getParentId());
+			tersMaps.add(teMap);
+		}
+		
+		//mv.addObject("selfT", ter.getMemberId().equals(user.getId()));
+		mv.addObject("ters", jsonmapper.toJson(tersMaps));
+		mv.addObject("terss", terss);
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="currentMonthData",description="当月数据")
+	public ModelAndView currentMonthData(HttpServletRequest request,Integer type,Boolean export){
+		Member member=UserUtil.getCurrentUser(request);
+		ModelAndView mv=null;
+		if(export==null){
+			export=false;
+		}
+		if(type==null){
+			type=1;
+		}
+		Map<String,Object> dataMap = null;
+		if(!export){
+			mv=new ModelAndView();
+			mv.setViewName("manager/finance/currentMonthData");
+			mv.addObject("type", type);
+		}else{
+			dataMap = new HashMap<String,Object>();
+		}
+		
+		FundTypeEnum typeE=null;
+		Calendar cale = Calendar.getInstance();   
+        cale.set(Calendar.DAY_OF_MONTH,0);
+        Date monthFirst=cale.getTime();
+        SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        SimpleDateFormat sdf2=new SimpleDateFormat("yyyy年MM月");
+        String monthStr=sdf2.format(monthFirst);
+		switch(type){
+			case 1:{typeE=FundTypeEnum.OUT_AWARD;};break;
+			case 2:{typeE=FundTypeEnum.RECOMMEND_AWARD;};break;
+			case 3:{typeE=FundTypeEnum.COMPETE;};break;
+			case 4:{typeE=FundTypeEnum.WITHDRAWALS;};break;
+			case 5:{typeE=FundTypeEnum.REGISTER;};break;
+			case 6:{typeE=FundTypeEnum.OUT_AWARD;};break;
+			case 7:{
+				ListPropertyFilter listP=ListPropertyFilter.getInstance()
+						.addFilter("state", 1, MatchType.EQ)
+						.addFilter("addTime", monthFirst, MatchType.GE);
+				if(member.getProxyArea()!=null){
+					listP.addFilter("proxyArea", member.getProxyArea(), MatchType.EQ);
+				}else{
+					listP.addFilter("proxyArea", MatchType.ISNULL);
+				}
+				List<Member> members=memberService.findByFilters(listP);
+				if(export){
+					dataMap.put("header", monthStr+" 注册用户");
+					List<String> titles = new ArrayList<String>();
+					titles.add("序号"); 		//1
+					titles.add("姓名");  		//2
+					titles.add("手机");  		//3
+					titles.add("推荐人");	//4
+					titles.add("推荐人手机");	//5
+					titles.add("注册时间");		//6
+					dataMap.put("titles", titles);
+					List<PageData> varList = new ArrayList<PageData>();
+					for(int i=0;i<members.size();i++){
+						PageData vpd = new PageData();
+						vpd.put("var1", i+1);		//1
+						vpd.put("var2", members.get(i).getName());		//1
+						vpd.put("var3", members.get(i).getTel());		//1
+						vpd.put("var4", members.get(i).getRecommenderName());		//1
+						vpd.put("var5", members.get(i).getRecommendertel());		//1
+						vpd.put("var6", sdf.format(members.get(i).getAddTime()));		//1
+						varList.add(vpd);
+					}
+					dataMap.put("varList", varList);
+				}else{
+					mv.addObject("members", members);
+					mv.addObject("typeE", "当月注册用户");
+					mv.addObject("unit", "人");
+					mv.addObject("numb", SystemParameters.StatisticsData.get("m_zcs"));
+					mv.addObject("tiao", members.size());
+				}
+			};break;
+			case 8:{
+				ListPropertyFilter listP=ListPropertyFilter.getInstance()
+						.addFilter("territoryState", 2, MatchType.NE)
+						.addFilter("modifyTime", monthFirst, MatchType.GE)
+						.addFilter("lastTerritoryTime", monthFirst, MatchType.GE);
+				if(member.getProxyArea()!=null){
+					listP.addFilter("proxyArea", member.getProxyArea(), MatchType.EQ);
+				}else{
+					listP.addFilter("proxyArea", MatchType.ISNULL);
+				}
+				List<Member> members=memberService.findByFilters(listP);
+					
+					if(export){
+						dataMap.put("header", monthStr+" 复投用户");
+						List<String> titles = new ArrayList<String>();
+						titles.add("序号"); 		//1
+						titles.add("姓名");  		//2
+						titles.add("手机");  		//3
+						titles.add("复投时间");		//6
+						dataMap.put("titles", titles);
+						List<PageData> varList = new ArrayList<PageData>();
+						for(int i=0;i<members.size();i++){
+							PageData vpd = new PageData();
+							vpd.put("var1", i+1);		//1
+							vpd.put("var2", members.get(i).getName());		//1
+							vpd.put("var3", members.get(i).getTel());		//1
+							vpd.put("var6", sdf.format(members.get(i).getModifyTime()));		//1
+							varList.add(vpd);
+						}
+						dataMap.put("varList", varList);
+					}else{
+						mv.addObject("members", members);
+						mv.addObject("typeE", "当月复投用户");
+						mv.addObject("unit", "人");
+						mv.addObject("numb", SystemParameters.StatisticsData.get("m_fts"));
+						mv.addObject("tiao", members.size());
+					}
+			};break;
+		}
+		
+		if(typeE!=null){
+			ListPropertyFilter listP=ListPropertyFilter.getInstance()
+					.addFilter("types", typeE, MatchType.EQ)
+					.addFilter("addTime", monthFirst, MatchType.GE);
+			if(member.getProxyArea()!=null){
+				listP.addFilter("proxyArea", member.getProxyArea(), MatchType.EQ);
+			}else{
+				listP.addFilter("proxyArea", MatchType.ISNULL);
+			}
+			
+			List<FundFlow> listF=fundFlowService.findByFilters(listP);
+			
+			double numb=fundFlowService.sumIntegralByStartDate(monthFirst, typeE,member.getProxyArea());
+			
+			if(export){
+				dataMap.put("header", monthStr+" "+typeE.desc());
+				List<String> titles = new ArrayList<String>();
+				titles.add("序号"); 		//1
+				titles.add("姓名");  		//2
+				titles.add("手机");  		//3
+				titles.add("积分");		//4
+				titles.add("时间");		//5
+				dataMap.put("titles", titles);
+				List<PageData> varList = new ArrayList<PageData>();
+				for(int i=0;i<listF.size();i++){
+					PageData vpd = new PageData();
+					vpd.put("var1", i+1);		//1
+					vpd.put("var2", listF.get(i).getUserName());		//1
+					vpd.put("var3", listF.get(i).getUserTel());		//1
+					vpd.put("var4", listF.get(i).getIntegral());		//1
+					vpd.put("var5", sdf.format(listF.get(i).getAddTime()));		//1
+					varList.add(vpd);
+				}
+				PageData vpd = new PageData();
+				vpd.put("var1","合计");		//1
+				vpd.put("var2", " ");		//1
+				vpd.put("var3", " ");		//1
+				vpd.put("var4", numb);		//1
+				vpd.put("var5",  "个积分");		//1
+				varList.add(vpd);
+				dataMap.put("varList", varList);
+			}else{
+				mv.addObject("funds", listF);
+				mv.addObject("typeE", typeE.desc());
+				mv.addObject("unit", "个积分");
+				mv.addObject("numb", numb);
+				mv.addObject("tiao", listF.size());
+			}
+		}
+		
+		if(export){
+			ObjectExcelView erv = new ObjectExcelView();					//执行excel操作
+			mv = new ModelAndView(erv,dataMap);
+		}
+		
+		return mv;
+	}
+	
+	/*@RequestMapping(value="exportCMDPage",description="导出页面")
+	public ModelAndView exportCMDPage(){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/finance/exportCMDPage");
+		return mv;
+	}
+	
+	@RequestMapping(value="exportCMD",description="导出页面")
+	public ModelAndView exportCMD(){
+		ModelAndView mv=new ModelAndView();
+		Map<String,Object> dataMap = new HashMap<String,Object>();
+		List<String> titles = new ArrayList<String>();
+		titles.add("序号"); 		//1
+		titles.add("姓名");  		//2
+		titles.add("手机");  		//3
+		titles.add("推荐人");	//4
+		titles.add("推荐人手机");	//5
+		titles.add("排位类型");		//6
+		titles.add("是否奖励2000积分");		//7
+		titles.add("申请时间");		//8
+		titles.add("审核通过时间");	//9
+		titles.add("出局时间");	//10
+		dataMap.put("titles", titles);
+		return mv;
+	}*/
+	
+	@RequestMapping(value="extention",description="查询消息")
+	public void extention(Long id){		
+		if(id!=null){
+			Territory ter=territoryService.findById(id);
+			if(ter!=null){
+				territoryService.terHasExtention(ter);
+			}
+		}
+	}
+
+}

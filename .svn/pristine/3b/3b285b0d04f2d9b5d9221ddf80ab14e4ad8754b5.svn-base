@@ -1,0 +1,146 @@
+package com.ybt.web.controller.portal;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang.StringUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.utils.WebAppUtils;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.AppUtil;
+import com.ybt.web.util.ApprovalUtil;
+import com.ybt.web.util.Constants;
+
+
+@Controller
+@RequestMapping(value="/finance/")
+public class MyApplyController extends SimpleController {
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IApprovalService approvalService;
+	
+	
+	@RequestMapping(value="myapply",description="我的申请")
+	public ModelAndView myapply(HttpServletRequest request,HttpServletResponse response){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/myapply");
+/*		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("applyUserId", member.getId(), MatchType.EQ);
+		filters.addFilter("reApply", false, MatchType.EQ);
+		filters.setOrderBy("addTime,state");
+		filters.setOrder("desc,asc");
+		List<Approval>lists = approvalService.findByFilters(filters);
+		mv.addObject("lists", lists);	*/		
+		return mv;
+	}
+	
+	@RequestMapping(value="pageFromMyApply",description="我的申请")
+	public ModelAndView pageFromMyApply(HttpServletRequest request,HttpServletResponse response,Page<Approval> page){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/loadForMyapply");
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("applyUserId", member.getId(), MatchType.EQ);
+		filters.addFilter("reApply", false, MatchType.EQ);
+		page.setOrderBy("addTime,state");
+		page.setOrder("desc,asc");
+		page.setPageSize(10);
+		//List<Approval>lists = approvalService.findByFilters(filters);
+		page = approvalService.findPagesByFilters(page, filters);
+		mv.addObject("page", page);			
+		return mv;
+	}
+	
+	@RequestMapping(value="applyDetail",description="申请明细")
+	public ModelAndView applyDetail(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String id){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/applyDetail"); 
+		Approval approval = approvalService.findById(id);
+		if(approval!=null&&approval.getApplyUserId().equals(member.getId())){
+			String stateMc = approval.getApprovalType()==1&&approval.getState().equals("0")?"等待平台打款审核":ApprovalUtil.getStateMc(approval.getState());
+			String typeMc = ApprovalUtil.getApprovalTypeMc(approval.getApprovalType());
+			boolean power = (approval.getApprovalType()!=1)&&("0".equals(approval.getState()));
+			mv.addObject("power", power);
+			mv.addObject("stateMc", stateMc);
+			mv.addObject("typeMc", typeMc);
+			mv.addObject("entity", approval);
+		}
+		String message = request.getParameter("message");
+		if(StringUtils.isNotEmpty(message)){
+			redirectAttributes.addFlashAttribute("message", message);
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			
+		}
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="saveVoucherUrl",description="保存打款凭证")
+	public String saveVoucherUrl(HttpServletRequest request,HttpServletResponse response, RedirectAttributes redirectAttributes,String id,String voucherUrl){
+		String message = null;
+		try{
+			synchronized(id){
+				String path=AppUtil.generateImage(voucherUrl, WebAppUtils.getBaseRealPath(request),"/upload/apply");
+				
+				if(path!=null){
+					Approval approval = approvalService.findById(id);
+					approval.setVoucherUrl(path);
+					approvalService.save(approval);
+					message = "保存成功";
+				}else{
+					message = "保存失败";
+				}
+			}
+		}catch(Exception e){
+			message = "保存失败";
+		}
+		redirectAttributes.addFlashAttribute("message", message);
+		redirectAttributes.addFlashAttribute("messageType", 1);
+		redirectAttributes.addAttribute("id", id);
+		return Constants.REDIRECT+"/finance/applyDetail.htm";
+	}
+	
+	
+	@RequestMapping(value="payApproval",description="操作已打款")
+	public String payApproval(HttpServletRequest request,HttpServletResponse response, RedirectAttributes redirectAttributes,String id){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		boolean result = approvalService.payApproval(id, member.getId());
+		String message = result?"操作成功":"操作失败";
+		redirectAttributes.addFlashAttribute("message", message);
+		redirectAttributes.addFlashAttribute("messageType", 1);
+		redirectAttributes.addAttribute("id", id);
+		return Constants.REDIRECT+"/finance/applyDetail.htm";
+	}
+		
+	
+	@RequestMapping(value="reApply",description="重新申请")
+	public String reApply(String id,RedirectAttributes redirectAttributes){
+		boolean result = approvalService.reApplyApproval(id);
+		if(result){
+			redirectAttributes.addFlashAttribute("message", "重新申请成功");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+		}else{
+			redirectAttributes.addFlashAttribute("message", "重新申请失败");
+			redirectAttributes.addFlashAttribute("messageType", 0);
+		}
+		return Constants.REDIRECT+"/finance/myapply.htm";
+	}
+	
+}

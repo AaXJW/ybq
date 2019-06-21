@@ -1,0 +1,25 @@
+package com.ybt.base.service;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.ProxyArea;
+
+/** 
+ * 说明： 代理区service接口
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+public interface IProxyAreaService extends IGeneralService<ProxyArea>{
+
+	/**
+	 * 停用/启用
+	 * @param id
+	 * @param state
+	 * @return
+	 * @throws BusinessException
+	 */
+	public boolean setState(String id,boolean state) throws BusinessException;
+
+}
+

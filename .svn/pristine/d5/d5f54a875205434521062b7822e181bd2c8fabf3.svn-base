@@ -1,0 +1,402 @@
+package com.ybt.web.util;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.commons.ServicesFactory;
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.utils.Const;
+import com.jiufengxinxi.utils.MD5;
+import com.jiufengxinxi.utils.WebAppUtils;
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.ITerritoryService;
+
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.Element;
+
+public class UserUtil {
+	
+	private static IMemberService memberService=ServicesFactory.getBean(IMemberService.class);
+	
+	private static IApprovalService approvalService=ServicesFactory.getBean(IApprovalService.class);
+	
+	private static ITerritoryService territoryService=ServicesFactory.getBean(ITerritoryService.class);
+	
+	public static Cache cache;
+
+	public static String createUser(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Member member,String vcode,String repaypassword,String relgpassword,boolean adminOprate,String returnUrl,String okurl){
+		if(member==null){
+			redirectAttributes.addFlashAttribute("message", "注册失败");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		String addUserId="";
+		if(request.getSession().getAttribute(Constants.LOGINED_USER)!=null){
+			if(!adminOprate){
+				Member currrentUser=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+				addUserId=currrentUser.getId();
+			}else{
+				addUserId="system";
+			}
+		}else{
+			addUserId="ybt";
+		}
+		
+		redirectAttributes.addFlashAttribute("tel", member.getTel());
+		redirectAttributes.addFlashAttribute("idNumber", member.getIdNumber());
+		redirectAttributes.addAttribute("recommendertel", member.getRecommendertel());
+		redirectAttributes.addFlashAttribute("question", member.getQuestion());
+		redirectAttributes.addFlashAttribute("levels", member.getLevels());
+		redirectAttributes.addFlashAttribute("account", member.getAccount());
+		redirectAttributes.addFlashAttribute("email", member.getEmail());
+		redirectAttributes.addFlashAttribute("weixin", member.getWeixin());
+		redirectAttributes.addFlashAttribute("bankBranch", member.getBankBranch());		
+		
+		Object svcode=request.getSession().getAttribute(Const.SESSION_SECURITY_CODE);
+		redirectAttributes.addFlashAttribute("messageType", 1);
+		if(svcode==null||!svcode.toString().toLowerCase().equals(vcode.toLowerCase())){
+			redirectAttributes.addFlashAttribute("message", "验证码错误");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		/*if(StringUtils.isEmpty(member.getTel())){
+			redirectAttributes.addFlashAttribute("message", "手机号不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(!memberService.isUnique(null, "tel", member.getTel())){
+			redirectAttributes.addFlashAttribute("message", "手机号已被使用");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getIdNumber())){
+			redirectAttributes.addFlashAttribute("message", "身份证号不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(!memberService.isUnique(null, "idNumber", member.getIdNumber())){
+			redirectAttributes.addFlashAttribute("message", "身份证号已被使用");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getLgpassword())){
+			redirectAttributes.addFlashAttribute("message", "登录密码不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getPaypassword())){
+			redirectAttributes.addFlashAttribute("message", "二级密码不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getAccount())){
+			redirectAttributes.addFlashAttribute("message", "银行卡账号不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getBankBranch())){
+			redirectAttributes.addFlashAttribute("message", "银行卡支行信息不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getWeixin())){
+			redirectAttributes.addFlashAttribute("message", "微信账号不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(member.getEmail())){
+			redirectAttributes.addFlashAttribute("message", "邮箱账号不能为空");
+		    return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(!adminOprate){
+			if(StringUtils.isEmpty(member.getRecommendertel())){
+				redirectAttributes.addFlashAttribute("message", "推荐人不能为空");
+			    return Constants.REDIRECT+returnUrl;
+			}
+			
+			Member recom=memberService.findUniqueByProperty("tel", member.getRecommendertel());
+			
+			if(recom==null){
+				redirectAttributes.addFlashAttribute("message", "推荐人手机号不存在");
+				return Constants.REDIRECT+returnUrl;
+			}
+			
+			member.setRecommendertels((StringUtils.isNotEmpty(recom.getRecommendertels())?recom.getRecommendertels():recom.getTel())+","+member.getTel());
+			member.setRecommendertel(recom.getTel());
+			member.setRecommenderId(recom.getId());
+			member.setAreaTop(recom.getAreaTop());
+		}else{
+			member.setAreaTop(member.getTel());
+		}
+		
+		Parameters parameters=SystemParameters.SYSTEM_PARAMETER;
+		
+		member.setLgpassword(MD5.md5(member.getLgpassword()));
+		member.setPaypassword(MD5.md5(member.getPaypassword()));
+		
+		String levelName=parameters.getLevels().get(member.getLevels()).getLevelName();
+		
+		double levelFee=parameters.getLevels().get(member.getLevels()).getLevelPrice();
+		
+		member.setLevelsName(levelName);
+		member.setLevelsFee(levelFee);
+		
+		member.setUserQRCode(QrCodeCreateUtil.generalQRCode(WebAppUtils.getBaseAccessUrl(request)+"register.htm?recommendertel="+member.getTel(), WebAppUtils.getBaseRealPath(request),"/upload/qrcode"));
+		member.setState(0);
+		member.setAddTime(new Date());
+		
+		try{
+			member.setPlateId("1");
+			
+			if(StringUtils.isEmpty(member.getAddUserId())){
+				member.setAddUserId(addUserId);
+			}
+			member=memberService.save(member);
+			boolean isCompete=StringUtils.isNotEmpty(request.getParameter("newType"))&&request.getParameter("newType").equals("1");
+			if(isCompete){
+				if(territoryService.compete(member.getId())){
+					redirectAttributes.addFlashAttribute("message", "抢位成功，待 "+member.getTel()+" 完成申请后您将得到本次抢单奖金");
+				}else{
+					redirectAttributes.addFlashAttribute("message", "您手太慢啦！抢位失败，但是您推荐的 "+member.getTel()+" 已经完成注册");
+					redirectAttributes.addFlashAttribute("messageType", 1);
+				}
+				
+			}else{
+				boolean result = approvalService.applyApproval(member, 0, levelFee,(isCompete?member.getRecommendertel()+"推荐的用户":null));
+				if(!result){
+					throw new BusinessException("保存审核记录失败");
+				}
+				redirectAttributes.addFlashAttribute("message", "注册成功");
+			}
+			
+			redirectAttributes.addFlashAttribute("messageType", 0);*/
+		
+		try{
+			String msg=memberService.registor(member, adminOprate, request.getParameter("newType"), addUserId);
+			redirectAttributes.addFlashAttribute("message", msg);
+		}catch (BusinessException e) {
+			redirectAttributes.addFlashAttribute("message", e.getMessage());
+			return Constants.REDIRECT+returnUrl;
+		}
+
+		return Constants.REDIRECT+okurl;
+	}
+	
+	//修改资料
+	public static String updateUser(HttpServletRequest request, HttpServletResponse response, 
+			RedirectAttributes redirectAttributes,Member param,String returnUrl,String loginUrl){		
+		String uuid=WebAppUtils.getCookieByName(request, Constants.LOGINED_USER_COOCKIE);
+		if(uuid==null){
+			return loginUrl;
+		}		
+		Member target=memberService.findUniqueByProperty("seqCode", uuid);
+		if(target==null){
+			return loginUrl;
+		}		
+		redirectAttributes.addFlashAttribute("messageType", 1);
+		if(StringUtils.isEmpty(param.getName())){
+			redirectAttributes.addFlashAttribute("message", "姓名不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(param.getQuestion())){
+			redirectAttributes.addFlashAttribute("message", "密保问题不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(param.getAnswer())){
+			redirectAttributes.addFlashAttribute("message", "密保问题对应答案不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		/*			if(StringUtils.isEmpty(param.getAccount())){
+			redirectAttributes.addFlashAttribute("message", "银行卡号不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(param.getBankBranch())){
+			redirectAttributes.addFlashAttribute("message", "银行支行信息不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+	if(StringUtils.isEmpty(param.getWeixin())){
+			redirectAttributes.addFlashAttribute("message", "微信账号不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		if(StringUtils.isEmpty(param.getEmail())){
+			redirectAttributes.addFlashAttribute("message", "邮箱账号答案不能为空");
+			return Constants.REDIRECT+returnUrl;
+		}*/
+		
+		try {
+			target.setName(param.getName());//姓名
+			target.setBankBranch(param.getBankBranch());//支行信息
+			target.setAccount(param.getAccount());//银行卡号
+			target.setWeixin(param.getWeixin());//微信
+			target.setEmail(param.getEmail());//邮箱
+			target.setQuestion(param.getQuestion());//密保问题
+			target.setAnswer(param.getAnswer());//答案
+			target.setModifyTime(new Date());
+			target.setModifyUserId(param.getId());
+			target=memberService.save(target);
+			request.getSession().setAttribute(Constants.LOGINED_USER, target);
+		} catch (Exception e) {
+			redirectAttributes.addFlashAttribute("message", "修改资料失败");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		redirectAttributes.addFlashAttribute("message", "修改资料成功");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+returnUrl;
+	}
+
+	//修改密码  前提条件验证
+	public static String ValidForchangePassword(HttpServletRequest request,String changeType,String oldPassword,
+			String newPassword,String newPasswordC,Member member) {
+		
+		if(StringUtils.isEmpty(changeType) ||(!"login".equals(changeType)&&!"pay".equals(changeType))){
+			return "非法操作";
+		}
+		String tokenCode = WebAppUtils.getCookieByName(request, "TOKEN_CODE");
+		if(StringUtils.isEmpty(tokenCode)||!tokenCode.equals(MD5.md5(member.getAnswer()))){
+			return "答案错误";
+		}		
+		
+		/*if("login".equals(changeType)&&(StringUtils.isEmpty(oldPassword)||!MD5.md5(oldPassword).equals(member.getLgpassword()))){
+			return "登录密码错误";
+		}
+		
+		if("pay".equals(changeType)&&(StringUtils.isEmpty(oldPassword)||!MD5.md5(oldPassword).equals(member.getPaypassword()))){
+			return "支付密码错误";
+		}*/
+		
+		if(StringUtils.isEmpty(newPassword)||StringUtils.isEmpty(newPasswordC)){
+			return "新密码或确认新密码不能为空";
+		}
+		
+		if(!newPassword.equals(newPasswordC)){
+			return "新密码与确认新密码不一致";
+		}
+		
+		return null;
+		
+	}
+
+	//保存修改登录密码
+	public static String saveChangeLgPassword(HttpServletRequest request,RedirectAttributes redirectAttributes,
+			 String oldPassword,String newPassword, String newPasswordC, String returnUrl) {		
+		try{
+			String tel=request.getParameter("tel");
+			Member member = null;
+			if(StringUtils.isNotEmpty(tel)){
+				Map<String,Object> param=new HashMap<String,Object>();
+				param.put("tel", tel);
+				param.put("deleteStatus", false);
+				member=memberService.findUniqueByProperty(param);
+				if(member==null){
+					redirectAttributes.addFlashAttribute("message", "手机号码不存在！");
+					return Constants.REDIRECT+"/personal/question.htm";
+				}
+				request.setAttribute("tel", tel);
+			}else{
+				member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+			}
+			String message = ValidForchangePassword(request, "login", oldPassword, newPassword, newPasswordC, member);
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			if(StringUtils.isNotEmpty(message)){
+				redirectAttributes.addFlashAttribute("message", message);
+				return Constants.REDIRECT+returnUrl;
+			}			
+			member.setLgpassword(MD5.md5(newPassword));
+			memberService.save(member);
+		}catch(Exception e){
+			redirectAttributes.addFlashAttribute("message", "修改密码失败");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		redirectAttributes.addFlashAttribute("message", "修改密码成功");
+		redirectAttributes.addAttribute("message", "修改密码成功");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+returnUrl;//+(returnUrl.indexOf('?')>0?"&":"?")+"message="+"修改密码成功&messageType=0";
+	}
+	
+	//保存修改支付密码
+	public static String saveChangePayPassword(HttpServletRequest request,RedirectAttributes redirectAttributes,
+			 String oldPassword,String newPassword, String newPasswordC, String returnUrl) {		
+		try{
+			Member member = (Member)request.getSession().getAttribute(Constants.LOGINED_USER);
+			String message = ValidForchangePassword(request, "pay", oldPassword, newPassword, newPasswordC, member);
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			if(StringUtils.isNotEmpty(message)){
+				redirectAttributes.addFlashAttribute("message", message);
+				return Constants.REDIRECT+returnUrl;
+			}			
+			member.setPaypassword(MD5.md5(newPassword));
+			memberService.save(member);
+		}catch(Exception e){
+			redirectAttributes.addFlashAttribute("message", "修改密码失败");
+			return Constants.REDIRECT+returnUrl;
+		}
+		
+		redirectAttributes.addFlashAttribute("message", "修改密码成功");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+returnUrl;
+	}
+	
+	
+	
+	public static void userChange(Member user){
+		put(user.getId(),user.getModifyTime().getTime());
+	}
+	
+	public static Long userChangeTime(String id){
+		Object da=get(id);
+		return da!=null?(Long)da:0;
+	}
+	
+	public static boolean userIsChange(Member user){
+		Long d=userChangeTime(user.getId());
+		if(d==null){
+			return false;
+		}
+		Long b=user.getModifyTime().getTime();
+		
+		return d>b;
+	}
+	
+	
+	public static void put(String key,Object value){
+		Element element = new Element(key, value);  
+		cache.put(element);
+	}
+	
+	public static Object get(String key){
+		Element element = cache.get(key);  
+		Object data = null;
+		if(element!=null){
+			data=element.getObjectValue();//获取到的缓存数据 
+		}
+		return data;
+	}
+
+	public Cache getCache() {
+		return cache;
+	}
+
+	public void setCache(Cache cache) {
+		UserUtil.cache = cache;
+	}
+	
+	
+	
+}

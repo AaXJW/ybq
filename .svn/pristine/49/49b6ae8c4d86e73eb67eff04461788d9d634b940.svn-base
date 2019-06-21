@@ -1,0 +1,55 @@
+package org.sitemesh.content.tagrules.decorate;
+
+import java.io.IOException;
+
+import org.sitemesh.SiteMeshContext;
+import org.sitemesh.content.Content;
+import org.sitemesh.content.ContentProperty;
+import org.sitemesh.tagprocessor.BasicBlockRule;
+import org.sitemesh.tagprocessor.Tag;
+
+public class SiteMeshWriteRule extends BasicBlockRule {
+	private final SiteMeshContext siteMeshContext;
+
+	public SiteMeshWriteRule(SiteMeshContext siteMeshContext) {
+		this.siteMeshContext = siteMeshContext;
+	}
+
+	protected Object processStart(Tag tag) throws IOException {
+		String propertyPath = tag.getAttributeValue("property", true);
+		Content contentToMerge = this.siteMeshContext.getContentToMerge();
+		if (contentToMerge != null) {
+			ContentProperty property = getProperty(contentToMerge, propertyPath);
+			if(property.hasValue()){
+				property.writeValueTo(this.tagProcessorContext.currentBuffer());
+			}else{
+				String defaultPath = tag.getAttributeValue("default", true);
+				if(defaultPath!=null){
+					this.tagProcessorContext.currentBuffer().append(defaultPath);
+				}else{
+					property.writeValueTo(this.tagProcessorContext.currentBuffer());
+				}
+			}
+		}
+		this.tagProcessorContext.pushBuffer();
+		return null;
+	}
+
+	protected ContentProperty getProperty(Content content, String propertyPath) {
+		ContentProperty currentProperty = content.getExtractedProperties();
+		for (String childPropertyName : propertyPath.split("\\.")) {
+			currentProperty = (ContentProperty) currentProperty
+					.getChild(childPropertyName);
+		}
+		return currentProperty;
+	}
+
+	protected void processEnd(Tag tag, Object data) throws IOException {
+		CharSequence defaultContents = this.tagProcessorContext
+				.currentBufferContents();
+		this.tagProcessorContext.popBuffer();
+		if (this.siteMeshContext.getContentToMerge() == null) {
+			this.tagProcessorContext.currentBuffer().append(defaultContents);
+		}
+	}
+}

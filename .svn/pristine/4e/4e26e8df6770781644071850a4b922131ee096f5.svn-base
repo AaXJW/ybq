@@ -1,0 +1,57 @@
+package com.ybt.test;
+
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Component;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Territory;
+import com.ybt.base.service.ITerritoryService;
+
+@Component
+public class InsertAccess {
+
+	@Resource
+	private ITerritoryService territoryService;
+	
+	private long id=0;
+	
+	public void insertBylevels(int level){
+		if(territoryService.getCount()!=0){
+			Number deep=territoryService.getMaxValue("depth");
+			List<Territory> territories=territoryService.findByFilters(ListPropertyFilter.getInstance().addFilter("depth", deep.intValue(), MatchType.EQ));
+			for(Territory terr:territories){
+				insertChild(territoryService.save(terr),deep.intValue()+1,level+deep.intValue());
+			}
+			return;
+		}
+		
+		Territory left=new Territory(null,0,false,0,0);
+		//left.setId(gid());
+		left.setName("节点");
+		insertChild(territoryService.save(left),1,level);
+	}
+	
+	public void insertChild(Territory parent,int curent,int totallevel){
+		if(curent>totallevel){
+			return;
+		}
+		Territory left=new Territory(parent,curent,curent==totallevel,1,0);
+		//left.setId(gid());
+		left.setName("左节点");
+		insertChild(territoryService.save(left),curent+1,totallevel);
+		
+		Territory right=new Territory(parent,curent,curent==totallevel,2,0);
+		//right.setId(gid());
+		right.setName("右节点");
+		insertChild(territoryService.save(right),curent+1,totallevel);
+		
+	}
+	
+	private synchronized long gid(){
+		return id++;
+	}
+}

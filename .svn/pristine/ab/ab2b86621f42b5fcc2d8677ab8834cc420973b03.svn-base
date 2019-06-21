@@ -1,0 +1,83 @@
+package com.ybt.base.entity;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Entity;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+import com.jiufengxinxi.core.entity.BusinessStringIdEntity;
+import com.jiufengxinxi.core.entity.annotations.AnnoField;
+
+/**
+ * 板块
+ * @author roger
+ *
+ */
+@Entity
+@Table(name="T_SYS_PLATE")
+public class Plate extends BusinessStringIdEntity {
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3277372131135024301L;
+
+	private String plateCode;
+	
+	private String plateName;
+	
+	private boolean enable;
+	
+	private String parameterId;
+	
+	@ManyToOne(cascade=CascadeType.REFRESH)
+    @JoinColumn(name = "parameterId", referencedColumnName = "id", nullable = true,insertable=false,updatable=false)
+    @AnnoField( caption = "参数" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Parameters parameter;
+
+	public String getPlateCode() {
+		return plateCode;
+	}
+
+	public void setPlateCode(String plateCode) {
+		this.plateCode = plateCode;
+	}
+
+	public String getPlateName() {
+		return plateName;
+	}
+
+	public void setPlateName(String plateName) {
+		this.plateName = plateName;
+	}
+
+	public boolean isEnable() {
+		return enable;
+	}
+
+	public void setEnable(boolean enable) {
+		this.enable = enable;
+	}
+
+	public String getParameterId() {
+		return parameterId;
+	}
+
+	public void setParameterId(String parameterId) {
+		this.parameterId = parameterId;
+	}
+
+	public Parameters getParameter() {
+		return parameter;
+	}
+
+	public void setParameter(Parameters parameter) {
+		this.parameter = parameter;
+	}
+	
+}

@@ -1,0 +1,266 @@
+package com.ybt.web.controller.portal;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Territory;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.utill.JsonMapper;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.test.InsertAccess;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.Constants;
+
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
+@Controller
+@RequestMapping(value="/team/")
+public class TeamController extends SimpleController {
+	
+	@Resource
+	private ITerritoryService territoryService;
+	
+	@Resource
+	private InsertAccess insertAccess;
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IApprovalService approvalService;
+
+	@Resource
+	private IMessageService messageService;
+	
+	@RequestMapping(value="index")
+	public ModelAndView index(HttpServletRequest request){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("team/index");
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		Territory ter=territoryService.getTerritoryByUser(user.getId());
+		mv.addObject("terr", ter);
+		mv.addObject("hasTerr", approvalService.apCount(user.getId(), new Integer[]{0}, new String[]{"0","1"}));
+		mv.addObject("competeSiteCount", territoryService.getCount(" where e.seatPrice<>0 and e.state = 0 and e.placeholderTel is null and e.supperTopTel = ?1", new Object[]{user.getAreaTop()}));
+		return mv;
+	}
+	
+	@RequestMapping(value="territory")
+	public ModelAndView territory(HttpServletRequest request,Integer level,String tel){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("team/territory");
+		//insertAccess.insertBylevels(6);
+		if(level==null){
+			level=5;
+		}
+		
+		if(level>SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()){
+			mv.addObject("message", "最大显示到第"+SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()+"层");
+			return mv;
+		}
+		
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		
+		if(StringUtils.isEmpty(tel)){
+			tel=user.getTel();
+		}else if(!tel.startsWith(user.getTel())){
+			//tel=tel.split("_")[0];
+			level=3;
+		}
+		
+		Page<Territory> pageTerritory=new Page<Territory>();
+		ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+		lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+		lFilter.addFilter("name", tel.split("_")[0], MatchType.LIKER);
+		lFilter.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+		pageTerritory.setOrderBy("depth");
+		pageTerritory.setOrder("asc");
+		pageTerritory.setPageSize(20);
+
+		pageTerritory=territoryService.findPagesByFilters(pageTerritory, lFilter);
+		
+		if(pageTerritory.getTotalCount()==0){
+			mv.addObject("message", "未找到相应的团购网络图");
+			return mv;
+		}
+		
+		List<String> terss=new ArrayList<String>();
+		
+		Territory ter=null;
+		
+		for(Territory t : pageTerritory.getResult()){
+			if(t.getName().equals(tel)){
+				ter=t;
+			}
+			terss.add(t.getName());
+		}
+		
+		if(ter.getMember()!=null&&StringUtils.isNotEmpty(ter.getMember().getRecommendertels())&&!ter.getMember().getRecommendertels().contains(user.getTel())){
+			mv.addObject("message", "查询非当前用户下发节点");
+			return mv;
+		}
+		
+		JsonMapper jsonmapper=JsonMapper.nonEmptyMapper();
+		String pid=StringUtils.isNotEmpty(ter.getParentids())?ter.getParentids()+","+ter.getId():ter.getId().toString();
+		List<Territory> ters=territoryService.findByFilters(ListPropertyFilter.getInstance()
+				.addFilter(new String[]{"parentids","id"}, new Object[]{pid,ter.getId()}, new MatchType[]{MatchType.LIKER,MatchType.EQ})
+				.addFilter("supperTopTel", ter.getSupperTopTel(), MatchType.EQ)
+				.addFilter("depth", ter.getDepth()+level, MatchType.LT)
+				.setOrderBy("depth,index").setOrder("asc,asc"));
+		
+		List<Map<String,Object>> tersMaps=new ArrayList<Map<String,Object>>();
+		for(Territory te : ters){
+			Map<String,Object> teMap=new HashMap<String,Object>();
+			teMap.put("seatPrice", te.getSeatPrice());
+			teMap.put("state", te.getState());
+			teMap.put("placeholderTel", te.getPlaceholderTel());
+			teMap.put("name", te.getName());
+			if(StringUtils.isNotEmpty(te.getUserName())){
+				String uname=te.getUserName().charAt(0)+"*"+te.getUserName().charAt(te.getUserName().length()-1);
+				teMap.put("userName", uname);
+			}
+			teMap.put("id", te.getId());
+			teMap.put("piid", te.getPiid());
+			teMap.put("parentId", te.getParentId());
+			tersMaps.add(teMap);
+		}
+		
+		mv.addObject("selfT", ter.getMemberId().equals(user.getId()));
+		mv.addObject("ters", jsonmapper.toJson(tersMaps));
+		mv.addObject("terss", terss);
+		return mv;
+	}
+	
+	@RequestMapping(value="reCast")
+	public String reCast(HttpServletRequest request, RedirectAttributes redirectAttributes){
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		user=memberService.findById(user.getId());
+		request.getSession().setAttribute(Constants.LOGINED_USER, user);
+		//territoryService.extionTerritory(user, TerritoryEnum.ReCast);
+		
+		
+		
+		
+		if(approvalService.apCount(user.getId(), new Integer[]{0}, new String[]{"0","1"})>0){
+			redirectAttributes.addFlashAttribute("message", "请勿重复提交申请");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			return Constants.REDIRECT+"/team/index.htm";
+		}
+		
+		boolean s=approvalService.applyApproval(user, 0, user.getLevelsFee(),null);
+		
+		if(s){
+			redirectAttributes.addFlashAttribute("message", "操作成功,请尽快操作打款完成复投");
+			redirectAttributes.addFlashAttribute("messageType", 0);
+			return Constants.REDIRECT+"/finance/myapply.htm";
+		}else{
+			redirectAttributes.addFlashAttribute("message", "操作失败");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			return Constants.REDIRECT+"/team/index.htm";
+		}
+	}
+	
+	@RequestMapping(value="recomendTree")
+	public ModelAndView recomendTree(HttpServletRequest request){
+		ModelAndView mv=new ModelAndView();
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		mv.setViewName("team/recomendTree");
+		List<Member> users=memberService.findByFilters(ListPropertyFilter.getInstance().addFilter("recommendertels", user.getTel()+",", MatchType.LIKE).setOrderBy("addTime"));
+		JSONArray array=new JSONArray();
+		JSONObject obj=new JSONObject();
+		obj.put("id", user.getTel());
+		obj.put("pId", null);
+		obj.put("name", user.getTel()+"("+user.getName()+")");
+		obj.put("open", true);
+		array.add(obj);
+		for(Member u:users){
+			JSONObject ob=new JSONObject();
+			ob.put("id", u.getTel());
+			ob.put("pId", u.getRecommendertel());
+			ob.put("name", u.getTel()+"("+u.getName()+")"+(u.getState()==0?"未认证":""));
+			//ob.put("open", true);
+			array.add(ob);
+		}
+		mv.addObject("json", array.toString());
+		return mv;
+	}
+	
+	@RequestMapping(value="competeArea")
+	public ModelAndView competeArea(HttpServletRequest request){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("team/competeArea");
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		//Territory reUser=territoryService.findUniqueByProperty("name", StringUtils.isNotEmpty(user.getRecommendertel())?user.getRecommendertel():user.getTel());
+		
+		ListPropertyFilter filters=ListPropertyFilter.getInstance()
+				.addFilter("seatPrice", 0, MatchType.GT)
+				.addFilter("state", 0, MatchType.EQ)
+				.addFilter("placeholderTel",MatchType.ISNULL);
+		if(StringUtils.isNotEmpty(user.getRecommendertel())){
+			filters.addFilter("groupInnerTopId", user.getRecommenderId(), MatchType.NE);
+		}
+		filters.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+		
+		List<Territory> ters=territoryService.findByFilters(filters);
+		
+		if(ters!=null&&ters.size()>0){
+			List<Object> users=memberService.competeUser(user.getAreaTop());
+			mv.addObject("ters", ters);
+			mv.addObject("users", users);
+			long ct=approvalService.getCount(" where e.state <> '2' and e.state <> '3' and e.approvalType=0", new Object[]{});
+			mv.addObject("isCan", ct<=0);
+			
+			/*for(Territory ter:ters){
+				if(ter.getName().contains(user.getTel())){
+					mv.addObject("isOwner", true);
+				}
+			}*/
+			
+		}
+		return mv;
+	}
+	
+	@RequestMapping(value="compete")
+	public String compete(HttpServletRequest request, RedirectAttributes redirectAttributes,Integer type){
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		if(user.getState()==0){
+			redirectAttributes.addFlashAttribute("message", "您还不是正式用户，不能参与抢位！");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			return Constants.REDIRECT+"/team/competeArea.htm";
+		}
+		
+		boolean s=false;
+		//if(user.getTerritoryState()==2){
+		if(type==1&&user.getTerritoryState()==2){
+			s=territoryService.compete(user.getId());
+			/*if(!s){
+				
+			}*/
+			redirectAttributes.addFlashAttribute("message", s?"抢位成功！请尽快处理支付占位金,否则该申请将在"+SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()+"小时后自动取消":"您手太慢啦！抢位失败");
+			redirectAttributes.addFlashAttribute("messageType", s?0:1);
+			return s?Constants.REDIRECT+"/finance/myapply.htm":Constants.REDIRECT+"/team/competeArea.htm";
+		}else{
+			redirectAttributes.addAttribute("newType", 1);
+			return Constants.REDIRECT+"/personal/createUser.htm";
+		}
+	}
+
+}

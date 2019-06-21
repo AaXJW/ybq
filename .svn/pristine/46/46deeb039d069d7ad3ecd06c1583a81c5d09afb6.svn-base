@@ -1,0 +1,123 @@
+package com.ybt.base.entity;
+
+import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
+import javax.persistence.Table;
+
+import com.ybt.base.entity.enums.FundTypeEnum;
+
+@Entity
+@Table(name="T_YW_FUND_FLOW")
+public class FundFlow extends BaseLongEntity {
+
+	
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -6924360208109545072L;
+	
+	//0提现、1分享奖、2团购成功、3见点奖
+	@Enumerated(EnumType.ORDINAL)
+	private FundTypeEnum types;
+	
+	private double amount;
+	
+	private double integral;//积分
+	
+	private String userId;
+	
+	private String remark;
+	
+	private String state;//0申请，1成功，2作废
+	
+	private String approvalId;
+	
+	private String userName;
+	
+	private String userTel;
+	
+	private Long proxyArea;//
+
+	public FundTypeEnum getTypes() {
+		return types;
+	}
+
+	public void setTypes(FundTypeEnum types) {
+		this.types = types;
+		this.remark = types.desc();
+	}
+
+	public double getAmount() {
+		return amount;
+	}
+
+	public void setAmount(double amount) {
+		this.amount = amount;
+	}
+
+	public String getUserId() {
+		return userId;
+	}
+
+	public void setUserId(String userId) {
+		this.userId = userId;
+	}
+
+	public String getRemark() {
+		return remark;
+	}
+
+	public void setRemark(String remark) {
+		this.remark = remark;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public String getApprovalId() {
+		return approvalId;
+	}
+
+	public void setApprovalId(String approvalId) {
+		this.approvalId = approvalId;
+	}
+
+	public double getIntegral() {
+		return integral;
+	}
+
+	public void setIntegral(double integral) {
+		this.integral = integral;
+	}
+
+	public String getUserName() {
+		return userName;
+	}
+
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+
+	public String getUserTel() {
+		return userTel;
+	}
+
+	public void setUserTel(String userTel) {
+		this.userTel = userTel;
+	}
+
+	public Long getProxyArea() {
+		return proxyArea;
+	}
+
+	public void setProxyArea(Long proxyArea) {
+		this.proxyArea = proxyArea;
+	}
+	
+}

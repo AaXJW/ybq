@@ -1,0 +1,19 @@
+package com.ybt.base.utill;
+
+import java.util.Hashtable;
+
+import com.ybt.base.entity.Parameters;
+
+public class SystemParameters {
+
+	public static Parameters SYSTEM_PARAMETER=new Parameters();
+	
+	public static Hashtable<String,Integer> unreadMSGMap=new Hashtable<String,Integer>();
+	
+	public static Hashtable<String,Object> StatisticsData=new Hashtable<String,Object>();
+	
+	public static String BASE_URL="";
+	
+	public static String BaseRealPath="";
+	
+}

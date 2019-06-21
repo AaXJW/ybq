@@ -1,0 +1,160 @@
+package com.ybt.base.service.impl;
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.ybt.base.dao.IFundFlowDao;
+import com.ybt.base.entity.FundFlow;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.TerritoryArea;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.ITerritoryAreaService;
+import com.ybt.base.utill.SystemParameters;
+
+@Service
+@Transactional
+public class FundFlowService extends GeneralServiceImpl<FundFlow, IFundFlowDao> implements IFundFlowService{
+
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private ITerritoryAreaService territoryAreaService;
+	
+	@Override
+	public FundFlow addFundFlow(FundTypeEnum type, String userId, double amount) {
+		FundFlow fundFlow=null;
+		synchronized (userId) {
+			Member user=memberService.findById(userId);
+			fundFlow=new FundFlow();
+			fundFlow.setUserId(userId);
+			fundFlow.setTypes(type);
+			fundFlow.setIntegral(amount);
+			fundFlow.setPlateId(user.getPlateId());
+			fundFlow.setAddTime(new Date());
+			fundFlow.setAddUserId(userId);
+			fundFlow.setUserName(user.getName());
+			fundFlow.setUserTel(user.getTel());
+			fundFlow.setProxyArea(user.getProxyArea());
+			switch(type){
+				case WITHDRAWALS: {
+					if(user.getBonus()<amount&&user.getBonus()<=0){
+						throw new BusinessException("提现审批失败，用户可提现积分不足");
+					}
+					double rate = SystemParameters.SYSTEM_PARAMETER.getConversionRate();					  
+					BigDecimal approvalMoneyBD = new BigDecimal(amount * (rate/100));
+					//保留2为小数，舍去2位小数
+					double approvalMoney =approvalMoneyBD.setScale(2, BigDecimal.ROUND_HALF_DOWN).doubleValue();
+					user.setBonus(user.getBonus()-amount);
+					fundFlow.setAmount(approvalMoney);
+				} break;
+				case RECOMMEND_AWARD: {
+					user.setBonus(user.getBonus()+amount);
+					//fundFlow.setRemark("");
+				} break;
+				case OUT_AWARD: {
+					user.setBonus(user.getBonus()+amount);
+				} break;
+				case COPITITIVE_AWARD: {
+					user.setBonus(user.getBonus()+amount);
+				} break;
+				case RECHARGE: {
+					user.setBalance(user.getBalance()+amount);
+				} break;
+				case REGISTER:{
+					user.setBonus(user.getBonus()+amount);
+					user.setState(1);
+				}break;
+				case COMPETE:{
+					user.setBonus(user.getBonus()+amount);
+					/*if(user.getBalance()<amount){
+						return false;
+					}
+					user.setBalance(user.getBalance()-amount);*/
+				}break;
+				
+				case BUYCAR:{
+					user.setBonus(user.getBonus()-amount);
+					TerritoryArea ta=territoryAreaService.getDefault(user.getProxyArea());
+					user.setTerritoryAreaId(ta.getId());
+					user.setTerritoryAreaLevel(ta.getAreaLevel());
+					user.setTerritoryAreaLevelName(ta.getAreaName());
+				} break;
+				default:{
+					return null;
+				}
+			}
+			
+			memberService.save(user);
+			save(fundFlow);
+			
+			return fundFlow;
+		}
+		
+	}
+	@Override
+	public double sumCashMoney(String userId) {
+		/*double sumCashMoney = 0;
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("state", "1", MatchType.EQ);//成功状态
+		filters.addFilter("types", FundTypeEnum.WITHDRAWALS, MatchType.EQ);//提现类型
+		filters.addFilter("deleteStatus", false, MatchType.EQ);
+		filters.addFilter("userId", userId,MatchType.EQ);				
+		List<FundFlow> lists = this.findByFilters(filters);		
+		for(FundFlow entity : lists){
+			sumCashMoney+=entity.getAmount();
+		}*/
+		
+		List l=this.nativeQuery("select sum(amount) from T_YW_FUND_FLOW where state='1' and types = 0 and userId = ?1 and delete_status = 0",new Object[]{userId}); 
+		
+		return l!=null&&l.size()>0&&l.get(0)!=null?Double.parseDouble(l.get(0).toString()):0;
+	}
+	
+	
+	@Override
+	public double sumIntegralByStartDate(Date beginDate, FundTypeEnum type,Long proxyAreaId) {
+		double integral=0;
+		String dateHql="select sum(t.integral) from FundFlow t where t.addTime >= ?1 and t.deleteStatus = 0 and t.types=?2 "+(proxyAreaId!=null?" and t.proxyArea=?3":"  and t.proxyArea is null");
+		List list=this.query(dateHql, proxyAreaId!=null?new Object[]{beginDate,type,proxyAreaId}:new Object[]{beginDate,type});
+		if(list!=null&&list.size()>0&&list.get(0)!=null){
+			integral=Double.parseDouble(list.get(0).toString());
+		}
+		return integral;
+	}
+	
+	
+	@Override
+	public double sumIntegral(FundTypeEnum type,Long proxyAreaId) {
+		double integral=0;
+		String dateHql="select sum(t.integral) from FundFlow t where t.deleteStatus = 0 and t.types=?1"+(proxyAreaId!=null?" and t.proxyArea=?2":"  and t.proxyArea is null");
+		List list=this.query(dateHql, proxyAreaId!=null?new Object[]{type,proxyAreaId}:new Object[]{type});
+		if(list!=null&&list.size()>0&&list.get(0)!=null){
+			integral=Double.parseDouble(list.get(0).toString());
+		}
+		return integral;
+	}
+	
+	@Override
+	public Long countIntegralByStartDate(Date beginDate, FundTypeEnum type,Long proxyAreaId) {
+		//Long integral=0L;
+		String dateHql=" where e.addTime >= ?1 and e.deleteStatus = 0 and e.types=?2"+(proxyAreaId!=null?" and e.proxyArea=?3":"  and e.proxyArea is null");
+		/*List list=this.query(dateHql, new Object[]{beginDate,type});
+		if(list!=null&&list.size()>0&&list.get(0)!=null){
+			integral=Long.parseLong(list.get(0).toString());
+		}*/
+		return this.getCount(dateHql, proxyAreaId!=null?new Object[]{beginDate,type,proxyAreaId}:new Object[]{beginDate,type});
+	}
+
+}

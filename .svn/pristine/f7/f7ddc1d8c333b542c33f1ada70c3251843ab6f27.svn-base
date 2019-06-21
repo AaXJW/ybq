@@ -1,0 +1,278 @@
+package com.ybt.base.service.impl;
+
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.lang.StringUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ibm.icu.text.SimpleDateFormat;
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.ybt.base.dao.IApprovalDao;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.FundFlow;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.entity.enums.TerritoryEnum;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.utill.DateUtils;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.util.MessageUtil;
+
+@Service
+@Transactional
+public class ApprovalService extends GeneralServiceImpl<Approval, IApprovalDao> implements IApprovalService{
+	
+	@Resource
+	private IFundFlowService fundFlowService;
+	
+	@Resource
+	private ITerritoryService territoryService;
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IMessageService messageService;
+	
+	
+	@Override
+	public boolean payApproval(String id, String opraterId) {
+		synchronized (id) {
+			Approval approval=findById(id);
+			if(approval==null){
+				throw new BusinessException("没有该审核申请");
+			}
+			if(!approval.getState().equals("0")){
+				throw new BusinessException("状态不符合付款情况");
+			}
+			
+			approval.setPayTime(new Date());
+			approval.setState("1");
+			try{
+				approval=save(approval);
+			}catch (Exception e) {
+				return false;
+			}
+		}
+		
+		return true;
+	}
+
+	@Override
+	public boolean approval(String id, boolean pass) {
+		Approval approval=findById(id);
+		if(approval==null){
+			throw new BusinessException("没有该审核申请");
+		}
+
+		if(approval.getApprovalType()!=1 && !approval.getState().equals("1")){
+			throw new BusinessException("该申请还没有付款");
+		}
+		
+		if(approval.getApprovalType()==1&&approval.getState().equals("0")){
+			throw new BusinessException("该申请不是待审核状态");
+		}
+		synchronized ("approval_"+approval.getProxyArea()) {
+			approval.setApprovalTime(new Date());
+			Member user=memberService.findById(approval.getApplyUserId());
+			if(pass){
+				approval.setState("2");
+				switch(approval.getApprovalType()){
+					case 0: {
+						TerritoryEnum te=TerritoryEnum.ReCast;
+						if(user.getState()==0){
+							fundFlowService.addFundFlow(FundTypeEnum.REGISTER, approval.getApplyUserId(), approval.getApprovalMoney());
+							if(StringUtils.isNotEmpty(user.getRecommenderId())&&territoryService.canGetRecPrices(user.getRecommenderId())){
+								FundFlow fundFlow=fundFlowService.addFundFlow(FundTypeEnum.RECOMMEND_AWARD, user.getRecommenderId(), SystemParameters.SYSTEM_PARAMETER.getRecomendAward());//推荐奖
+								fundFlow.setRemark("推荐了 "+user.getName()+"("+user.getTel()+")");
+								fundFlowService.save(fundFlow);
+							}
+							//te=approval.getAddUserId()!=null&&approval.getAddUserId().equals("system")?TerritoryEnum.NewVertex:TerritoryEnum.NomalCast;
+							te=StringUtils.isEmpty(user.getRecommenderId())?TerritoryEnum.NewVertex:TerritoryEnum.NomalCast;//没有推荐人则是新顶点
+						}
+						/*user.setState(1);*/
+						territoryService.extionTerritory(user, te);
+					} break;
+					case 1: {
+						fundFlowService.addFundFlow(FundTypeEnum.WITHDRAWALS, approval.getApplyUserId(), approval.getApprovalIntegral());						
+					} break;
+					case 2: {
+						fundFlowService.addFundFlow(FundTypeEnum.RECHARGE, approval.getApplyUserId(), approval.getApprovalIntegral());
+					} break;
+				}
+			}else{
+				approval.setState("3");
+				//memberService.LogicDeleteById(approval.getApplyUserId());
+				memberService.cancelMember(user);
+				territoryService.cancelPlaceHold(user.getTel());
+			}
+			try{
+				approval=save(approval);
+				//私信通知用户审核结果
+				Map<String,String> map = MessageUtil.madeMessageContent(approval, pass);
+				messageService.addSelfMessage(user.getTel(), "system",  map.get("title"), map.get("content"),"/finance/applyDetail.htm?id="+approval.getId(),user.getProxyArea());
+			}catch (Exception e) {
+				return false;
+			}
+			getDefaultDAO().getEntityManager().flush();
+		}
+		
+		return true;
+	}
+
+	@Override
+	public boolean applyApproval(Member member, int applyType,Long territoryAreaId , double amount,String remark) {
+		synchronized (member.getId()) {
+			try {
+				SimpleDateFormat sdf=new SimpleDateFormat("yy年MM月dd日 HH点mm分");
+				String nowStr=sdf.format(new Date());
+				String smTitle=applyType==3?"抢位":null;//由于怕影响到其它模块，但是又需要区分抢位申请，所以做此处理
+				if(applyType==3){
+					applyType=0;
+				}
+				Approval approval=new Approval();
+				approval.setProxyArea(member.getProxyArea());//设置代理区
+				if(applyType==0){					
+					approval.setApprovalMoney(amount);
+					approval.setApprovalIntegral(0);
+				}else{ 
+					double rate = SystemParameters.SYSTEM_PARAMETER.getConversionRate();					  
+					BigDecimal approvalMoneyBD = new BigDecimal(amount * (rate/100));
+					//保留2为小数，舍去2位小数
+					double approvalMoney =approvalMoneyBD.setScale(2, BigDecimal.ROUND_HALF_DOWN).doubleValue();
+					approval.setApprovalIntegral(amount);//积分
+					approval.setApprovalMoney(approvalMoney);					
+				}
+				if(applyType==0){
+					//approval.setSmallTitle(smTitle!=null?smTitle:(member.getState()==0?"注册":"复投"));
+					if(smTitle!=null){
+						approval.setSmallTitle(smTitle);
+					}else if(member.getState()==0){
+						approval.setSmallTitle("注册");
+						//messageService.addSelfMessage(member.getTel(), "system",  "请及时完成注册申请", "您于"+nowStr+"注册，请"+(SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()==0?"尽快":"于"+SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()+"小时内")+"完成申请，逾期申请将被自动取消","/finance/applyDetail.htm?id="+approval.getId());
+					}else{
+						approval.setSmallTitle("复投");
+						//messageService.addSelfMessage(member.getTel(), "system",  "请及时完成复投", "您于"+nowStr+"申请复投，请"+(SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()==0?"尽快":"于"+SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()+"小时内")+"完成申请，逾期申请将被自动取消","/finance/applyDetail.htm?id="+approval.getId());
+					}
+					
+					approval.setTerritoryAreaId(territoryAreaId);//设置团购等级
+				}
+				if(applyType==1){
+					if(StringUtils.isNotEmpty(member.getAccount())){
+						approval.setAccount(member.getAccount());
+					}
+					approval.setSmallTitle("提现");		
+				}
+				if(applyType==2){
+					approval.setSmallTitle("充值");
+				}
+				
+				approval.setApprovalName("申请人:"+member.getTel()+"("+member.getName()+")");
+				Date now=new Date();
+				approval.setApprovalCode("ap"+new Date().getTime());
+				approval.setState((applyType==1)?"1":"0");
+				approval.setAddTime(now);
+				if(member.getAddUserId()!=null){
+					Member recUser=memberService.findById(member.getAddUserId());
+					if(recUser!=null&&recUser.isAdmin()){//如果创建者为管理员，则为新支点
+						approval.setAddUserId("system");
+					}else{
+						approval.setAddUserId(member.getAddUserId());
+					}
+				}else{
+					approval.setAddUserId(member.getAddUserId());
+				}
+				
+				approval.setApplyUserId(member.getId());
+				approval.setApprovalType(Math.abs(applyType));
+				approval.setPayOutTime(DateUtils.jiaJianTime(now, SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue(), 1));
+				approval.setPlateId(member.getPlateId());
+				if(StringUtils.isNotEmpty(remark)){//////
+					approval.setRemark(remark);
+				}else if(member.getState()==0&&applyType==0){
+					String recomName="";
+					if(StringUtils.isNotEmpty(member.getRecommenderId())){
+						Member recom=memberService.findById(member.getRecommenderId());
+						recomName="("+recom.getName()+")";
+					}
+					approval.setRemark("由用户 "+member.getRecommendertel()+recomName+" 推荐");
+				}
+				approval=this.save(approval);
+				
+				if(applyType==0){
+					if(member.getState()==0){
+						messageService.addSelfMessage(member.getTel(), "system",  "请及时完成注册申请", "您于"+nowStr+"注册，请"+(SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()==0?"尽快":"于"+SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()+"小时内")+"完成申请，逾期申请将被自动取消","/finance/applyDetail.htm?id="+approval.getId(),member.getProxyArea());
+					}else{
+						messageService.addSelfMessage(member.getTel(), "system",  "请及时完成复投", "您于"+nowStr+"申请复投，请"+(SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()==0?"尽快":"于"+SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()+"小时内")+"完成申请，逾期申请将被自动取消","/finance/applyDetail.htm?id="+approval.getId(),member.getProxyArea());
+					}
+				}
+			} catch (Exception e) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	@Override
+	public boolean reApplyApproval(String id) {	
+		if(StringUtils.isEmpty(id)){
+			return false;
+		}
+		Approval approval = this.findById(id);
+		Member member = memberService.findById(approval.getApplyUserId());
+		if(approval==null || !approval.getState().equals("3")|| approval.isDeleteStatus()){
+			return false;
+		}
+		approval.setReApply(true);
+		boolean result = false;
+		synchronized (id){
+			result = this.applyApproval(member, approval.getApprovalType(),approval.getTerritoryAreaId(), approval.getApprovalMoney(), "用户："+member.getTel()+"重新发起申请");
+			if(result){
+				this.deleteById(id);
+			}
+		} 
+		return result;
+	}
+
+	@Override
+	public double sumApplyingbonusByUserId(String userId) {
+		String sql ="select sum(approvalIntegral) from T_YW_APPROVAL where approvalType='1' and state in ('0','1') and reApply = 0 and applyUserId='"+userId+"'";
+		List list = this.nativeQuery(sql);
+		return list==null||list.size()==0||list.get(0)==null?0:Double.parseDouble(list.get(0).toString());
+	}
+
+	@Override
+	public List getOutTimeApply() {
+		String sql="SELECT t.id FROM T_YW_APPROVAL t WHERE DATE_ADD(t.`approvalTime`, INTERVAL ?1 HOUR) > NOW() AND t.`state` = '0'";
+		return nativeQuery(sql, new Object[]{SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()});
+	}
+
+	@Override
+	public long apCount(String userId, Integer[] type, String[] state) {
+		return getCount(" where e.applyUserId=?1 and e.approvalType in (?2) and e.state in (?3)", new Object[]{userId,Arrays.asList(type),Arrays.asList(state)});
+	}
+
+	
+	public Double sumIntegralByStartDate(Date monthFirst, int type){
+		double integral=0;
+		String dateHql="select sum(t.approvalIntegral) from Approval t where t.addTime >= ?1 and t.deleteStatus = 0 and t.approvalType=?2 and t.state = '2'";
+		List list=this.query(dateHql, new Object[]{monthFirst,type});
+		if(list!=null&&list.size()>0&&list.get(0)!=null){
+			integral=Double.parseDouble(list.get(0).toString());
+		}
+		return integral;
+	}
+
+}

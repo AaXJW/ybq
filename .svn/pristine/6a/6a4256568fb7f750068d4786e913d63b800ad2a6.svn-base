@@ -1,0 +1,49 @@
+package com.ybt.base.entity;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.MappedSuperclass;
+
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+import com.jiufengxinxi.core.entity.BusinessLongIdEntity;
+import com.jiufengxinxi.core.entity.annotations.AnnoField;
+
+@MappedSuperclass
+public class BaseLongEntity extends BusinessLongIdEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 7463128859577158873L;
+
+	@ManyToOne(cascade=CascadeType.REFRESH,fetch=FetchType.LAZY)
+    @JoinColumn(name = "plate", referencedColumnName = "id", nullable = true,insertable=false,updatable=false)
+    @AnnoField( caption = "所属版块" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Plate plate;
+	
+	@Column(name="plate")
+	private String plateId;
+
+	public Plate getPlate() {
+		return plate;
+	}
+
+	public void setPlate(Plate plate) {
+		this.plate = plate;
+	}
+
+	public String getPlateId() {
+		return plateId;
+	}
+
+	public void setPlateId(String plateId) {
+		this.plateId = plateId;
+	}
+	
+}

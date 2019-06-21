@@ -1,0 +1,94 @@
+package com.ybt.web.controller.manager;
+
+import java.util.Arrays;
+import java.util.Date;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Message;
+import com.ybt.base.service.IMessageService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.MessageUtil;
+import com.ybt.web.util.UserUtil;
+
+/**
+ * 消息管理
+ * @author D.Y
+ *
+ */
+@Controller
+@RequestMapping(value="/manager/message")
+public class MessageManagerController extends SimpleController  {
+
+	@Resource
+	private IMessageService messageService;
+	
+	@RequestMapping(value="createMessage",description="创建消息")
+	public String createMessage(){
+		return "manager/message/createMessage";
+	}
+	
+	@RequestMapping(value="saveMessage",description="保存消息")
+	public String saveMessage(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Message param){		
+		//Member member=UserUtil.getCurrentUser(request);
+		return MessageUtil.createMessage(request, response, redirectAttributes, param, "/manager/message/createMessage.htm","/manager/message/list.htm");
+	}
+	
+	@RequestMapping(value="deleteMessage",description="删除消息")
+	public String deleteMessage(RedirectAttributes redirectAttributes,String id){
+		
+		redirectAttributes.addFlashAttribute("message", "删除成功");
+		return "manager/message/list";
+	}
+	
+	@RequestMapping(value="list",description="查询消息")
+	public ModelAndView list(String mtype,Date startDate,Date endDate){		
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/message/list");
+		return mv;		
+	}
+	
+	@RequestMapping(value="pageFromMessage",description="消息加载列表")
+	public ModelAndView pageFromMessage(String mtype,Date startDate,Date endDate,int currentPage){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/message/load");
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		if(StringUtils.isNotEmpty(mtype)){
+			filters.addFilter("mtype", mtype, MatchType.EQ);
+			mv.addObject("mtype",mtype);
+		}else{
+			filters.addFilter("mtype", Arrays.asList("0","1"), MatchType.IN);
+		}
+		if(startDate!=null){
+			filters.addFilter("addTime", startDate,MatchType.GE);
+			mv.addObject("startDate",startDate);
+		}
+		if(endDate!=null){
+			filters.addFilter("addTime", endDate,MatchType.LE);
+			mv.addObject("endDate",endDate);
+		}
+		
+		Page<Message> page=new Page<Message>();
+		page.setCurrentPage(currentPage);
+		page.setPageSize(10);
+		page.setOrderBy("addTime");
+		page.setOrder("desc");
+		//List<Message> list = messageService.findByFilters(filters);	
+		page=messageService.findPagesByFilters(page, filters);
+		mv.addObject("page", page);
+		return mv;
+	}
+	
+}

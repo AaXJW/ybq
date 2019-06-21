@@ -1,0 +1,298 @@
+package com.ybt.base.entity;
+
+import java.util.List;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+
+import com.alibaba.dubbo.common.utils.StringUtils;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.jiufengxinxi.core.entity.BusinessStringIdEntity;
+import com.ybt.base.entity.vo.LevelsItem;
+import com.ybt.base.utill.JsonMapper;
+
+
+/**
+ * 参数
+ * @author roger
+ *
+ */
+@Entity
+@Table(name="T_SYS_PARAMETERS")
+public class Parameters extends BaseStringEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -3973770397956528200L;
+	
+	private String parameterName;
+	
+	private int types;//0系统参数，1板块参数
+	
+	private String registorOptionsName="";
+	
+	
+	private String memberLevelOptiosName="";
+	
+	private String territoryTopName;//版图顶点名称
+	
+	private String territorySecondName;//版图二级名称
+	
+	private String territoryThirdName;//版图三级名称
+	
+	private String accountReceivable;//收款账号
+	
+	private String userReceivable;//收款账户
+	
+	private String brbankReceivable;//收款支行
+	
+	private String bankReceivable;//收款银行
+	
+	private String telReceivable;//收款联系电话
+	
+	private double outAllAward;//团购成功一等奖
+	
+	private double outSecAward;//团购成功二等奖
+	
+	private double outThrAward;//团购成功二等奖
+	
+	private int areaMaxLevel=9;//单区最大层
+	
+	private int reCastCycle=4*30;//复投周期
+	
+	private double recomendAward;//推荐奖金
+	
+	private double grabOrderPrice;//抢单金额
+	
+	private double conversionRate;//积分/现金换算率
+	
+	private double competePrice;//抢单价格
+	
+	private int payTimeOutValue;//打款超时时间
+	
+	@Transient
+	private List<LevelsItem> levels;
+	
+	@Transient
+	private List<String> quesion;
+
+	public String getParameterName() {
+		return parameterName;
+	}
+
+	public void setParameterName(String parameterName) {
+		this.parameterName = parameterName;
+	}
+
+	public int getTypes() {
+		return types;
+	}
+
+	public void setTypes(int types) {
+		this.types = types;
+	}
+
+	public String getRegistorOptionsName() {
+		return registorOptionsName;
+	}
+
+	public void setRegistorOptionsName(String registorOptionsName) {
+		this.registorOptionsName = registorOptionsName;
+		initQuesion();
+	}
+
+	public String getMemberLevelOptiosName() {
+		return memberLevelOptiosName;
+	}
+
+	public void setMemberLevelOptiosName(String memberLevelOptiosName) {
+		this.memberLevelOptiosName = memberLevelOptiosName;
+		initLevels();
+	}
+
+	public String getTerritoryTopName() {
+		return territoryTopName;
+	}
+
+	public void setTerritoryTopName(String territoryTopName) {
+		this.territoryTopName = territoryTopName;
+	}
+
+	public String getTerritorySecondName() {
+		return territorySecondName;
+	}
+
+	public void setTerritorySecondName(String territorySecondName) {
+		this.territorySecondName = territorySecondName;
+	}
+
+	public String getTerritoryThirdName() {
+		return territoryThirdName;
+	}
+
+	public void setTerritoryThirdName(String territoryThirdName) {
+		this.territoryThirdName = territoryThirdName;
+	}
+
+	public String getAccountReceivable() {
+		return accountReceivable;
+	}
+
+	public void setAccountReceivable(String accountReceivable) {
+		this.accountReceivable = accountReceivable;
+	}
+
+	public String getUserReceivable() {
+		return userReceivable;
+	}
+
+	public void setUserReceivable(String userReceivable) {
+		this.userReceivable = userReceivable;
+	}
+
+	public String getBrbankReceivable() {
+		return brbankReceivable;
+	}
+
+	public void setBrbankReceivable(String brbankReceivable) {
+		this.brbankReceivable = brbankReceivable;
+	}
+
+	public String getBankReceivable() {
+		return bankReceivable;
+	}
+
+	public void setBankReceivable(String bankReceivable) {
+		this.bankReceivable = bankReceivable;
+	}
+
+	public String getTelReceivable() {
+		return telReceivable;
+	}
+
+	public void setTelReceivable(String telReceivable) {
+		this.telReceivable = telReceivable;
+	}
+
+	public List<LevelsItem> getLevels() {
+		if(levels==null){
+			initLevels();
+		}
+		return levels;
+	}
+
+	public void setLevels(List<LevelsItem> levels) {
+		this.levels = levels;
+		memberLevelOptiosName=JsonMapper.nonDefaultMapper().toJson(levels);
+	}
+
+	public List<String> getQuesion() {
+		if(quesion==null){
+			initQuesion();
+		}
+		return quesion;
+	}
+
+	public void setQuesion(List<String> quesion) {
+		this.quesion = quesion;
+		
+		registorOptionsName=JsonMapper.nonDefaultMapper().toJson(quesion);
+	}
+	
+	private void initQuesion(){
+		if(StringUtils.isNotEmpty(registorOptionsName)){
+			//JSONArray array=JSONArray.fromObject(registorOptionsName);
+			quesion=JsonMapper.nonDefaultMapper().fromJson(registorOptionsName, List.class); 
+		}
+	}
+	
+	private void initLevels(){
+		if(StringUtils.isNotEmpty(memberLevelOptiosName)){
+			//JSONArray array=JSONArray.fromObject(memberLevelOptiosName);
+			levels=JsonMapper.nonDefaultMapper().fromJson(memberLevelOptiosName, new TypeReference<List<LevelsItem>>() {}); //(LevelsItem[]) array.toArray(new LevelsItem[]{});
+		}
+	}
+
+	public double getOutAllAward() {
+		return outAllAward;
+	}
+
+	public void setOutAllAward(double outAllAward) {
+		this.outAllAward = outAllAward;
+	}
+
+	public double getOutSecAward() {
+		return outSecAward;
+	}
+
+	public void setOutSecAward(double outSecAward) {
+		this.outSecAward = outSecAward;
+	}
+
+	public double getOutThrAward() {
+		return outThrAward;
+	}
+
+	public void setOutThrAward(double outThrAward) {
+		this.outThrAward = outThrAward;
+	}
+
+	public int getAreaMaxLevel() {
+		return areaMaxLevel;
+	}
+
+	public void setAreaMaxLevel(int areaMaxLevel) {
+		this.areaMaxLevel = areaMaxLevel;
+	}
+
+	public int getReCastCycle() {
+		return reCastCycle;
+	}
+
+	public void setReCastCycle(int reCastCycle) {
+		this.reCastCycle = reCastCycle;
+	}
+
+	public double getRecomendAward() {
+		return recomendAward;
+	}
+
+	public void setRecomendAward(double recomendAward) {
+		this.recomendAward = recomendAward;
+	}
+
+	public double getGrabOrderPrice() {
+		return grabOrderPrice;
+	}
+
+	public void setGrabOrderPrice(double grabOrderPrice) {
+		this.grabOrderPrice = grabOrderPrice;
+	}
+
+	public double getConversionRate() {
+		return conversionRate;
+	}
+
+	public void setConversionRate(double conversionRate) {
+		this.conversionRate = conversionRate;
+	}
+
+	public double getCompetePrice() {
+		return competePrice;
+	}
+
+	public void setCompetePrice(double competePrice) {
+		this.competePrice = competePrice;
+	}
+
+	public int getPayTimeOutValue() {
+		return payTimeOutValue;
+	}
+
+	public void setPayTimeOutValue(int payTimeOutValue) {
+		this.payTimeOutValue = payTimeOutValue;
+	}
+
+}

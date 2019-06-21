@@ -1,0 +1,25 @@
+package com.ybt.base.service;
+
+import java.util.List;
+
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.Member;
+
+public interface IMemberService extends IGeneralService<Member> {
+
+	public Member getMemberByTel(String tel);
+	
+	public List<Object> competeUser(String areaTop);
+	
+	public long getCountUserByrecommendertel(String recommendertel);
+	
+	public boolean isCanCompete(String userid);
+	
+	public String registor(Member member,boolean adminOprate,String newType,String addUserId);
+	
+	public void cancelMember(String id);
+	
+	public void cancelMember(Member member);
+	
+	//public Long countMember(String hql,Object[] param);
+}

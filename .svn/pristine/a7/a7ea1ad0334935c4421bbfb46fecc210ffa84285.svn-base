@@ -1,0 +1,36 @@
+package com.ybt.base.service.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.jiufengxinxi.utils.Assert;
+import com.ybt.base.dao.IUrlAuthorityDao;
+import com.ybt.base.entity.UrlAuthority;
+import com.ybt.base.service.IUrlAuthorityService;
+
+/** 
+ * 说明： 权限控制service
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+@Service
+@Transactional
+public class UrlAuthorityService extends GeneralServiceImpl<UrlAuthority, IUrlAuthorityDao> implements IUrlAuthorityService{
+
+	@Override
+	public boolean setState(String id,boolean enable) throws BusinessException {
+		Assert.notNull(id, "id not null！");
+		UrlAuthority entity = super.findById(id);
+		if(null != entity){
+			entity.setEnable(enable);
+			return true;
+		}else{
+			throw new BusinessException("找不到您要操作的数据！");
+		}
+	}
+	
+}
+

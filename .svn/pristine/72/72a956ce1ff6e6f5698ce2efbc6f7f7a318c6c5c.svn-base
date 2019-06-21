@@ -1,0 +1,132 @@
+package com.ybt.base.service.impl;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.alibaba.dubbo.common.utils.StringUtils;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.ybt.base.dao.IMessageDao;
+import com.ybt.base.entity.Message;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.utill.SystemParameters;
+
+@Service
+@Transactional
+public class MessageService extends GeneralServiceImpl<Message, IMessageDao> implements IMessageService {
+
+	@Override
+	public List<Message> getPlatformMessages() {
+		return this.getMessage(null, "1");
+	}
+
+	@Override
+	public List<Message> getSelfMessage(String reciver) {
+		return this.getMessage(reciver, "0");
+	}
+
+	@Override
+	public List<Message> getMessage(String reciver, String mtype) {
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();		
+		if(StringUtils.isNotEmpty(reciver)){
+			filters.addFilter("reciver", reciver, MatchType.EQ);
+		}
+		if(StringUtils.isNotEmpty(mtype)){
+			filters.addFilter("mtype", mtype, MatchType.EQ);
+		}
+		filters.setOrder("desc");
+		filters.setOrderBy("addTime");
+		return this.findByFilters(filters);
+	}
+
+	@Override
+	public Message addSelfMessage(String reciver, String sender, String title,
+			String content, String url) {
+		Message message = new Message();
+		message.setMtype("0");
+		message.setSender("0");
+		message.setTitle(title);
+		message.setContent(content);
+		message.setReciver(reciver);
+		message.setSender(sender);
+		message.setUrl(url);
+		Integer urd=SystemParameters.unreadMSGMap.get(reciver);
+		if(urd==null){
+			urd=0;
+		}
+		SystemParameters.unreadMSGMap.put(reciver, urd+1);
+		return this.save(message);
+	}
+
+	@Override
+	public Message addPlatformMessage(String reciver, String sender,
+			String title, String content, String url) {
+		Message message = new Message();
+		message.setMtype("0");
+		message.setSender("0");
+		message.setTitle(title);
+		message.setContent(content);
+		message.setReciver(reciver);
+		message.setSender(sender);
+		message.setUrl(url);
+		return this.save(message);
+	}
+
+	@Override
+	public Integer unreadCount(String tel) {
+		return Long.valueOf(getCount(" where e.reciver=?1 and e.state='0' ", new Object[]{tel})).intValue();
+	}
+
+	@Override
+	public boolean readedMesage(String id,String tel) {
+		try{
+			Message message =findById(id);
+			message.setState("1");
+			save(message);
+		}catch(Exception ex){
+			return false;
+		};
+		
+		Integer urd=SystemParameters.unreadMSGMap.get(tel);
+		if(urd!=null&&urd!=0){
+			SystemParameters.unreadMSGMap.put(tel, urd-1);
+		}
+		return true;
+	}
+	
+	
+
+	@Override
+	public int makeSelfMessageHadReaded(String reciver) {
+		int count = 0;
+		try {
+			String sql = "update T_SYS_MESSAGE t set t.delete_status='0',t.state='1' where t.mtype ='0' and t.state='0' and t.reciver='"+reciver+"'";		
+			count = this.executeNativeUpdate(sql);
+		} catch (Exception e) {
+			e.printStackTrace();			
+		}
+		return count;
+	}
+
+	@Override
+	public List<Message> getTopFiveMessagesByReciver(String reciver) {
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("reciver", reciver, MatchType.EQ);
+		filters.addFilter("mtype","0",MatchType.EQ);
+		filters.addFilter("state","0",MatchType.EQ);
+		Page<Message> page =new Page<Message>();
+		page.setOrderBy("addTime");
+		page.setOrder("desc");
+		page.setPageSize(5);
+		page=this.findPagesByFilters(page, filters);
+		if(page!=null){
+			return page.getResult();
+		}
+		return null;
+	}
+
+}

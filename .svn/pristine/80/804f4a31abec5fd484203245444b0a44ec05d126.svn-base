@@ -1,0 +1,62 @@
+<%@ page language="java" import="java.util.*,com.ybt.web.util.*" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ include file="/WEB-INF/jsp/taglibs.jsp" %>
+
+<link href="${ctx}/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet" />
+
+<link href="${ctx}/plugins/bootstrap-datetimepicker/css/bootstrap-datetimepicker.min.css" rel="stylesheet">
+
+<link href="${ctx}/plugins/font.awesome/css/font-awesome.min.css" rel="stylesheet" />
+
+<link href="${ctx }/static/style/jquery.block.css" rel="stylesheet" />
+
+<script type='text/javascript' src='${ctx }/dwr/engine.js'></script>
+<script type='text/javascript' src='${ctx }/dwr/util.js'></script>
+
+<script src="${ctx }/static/js/jquery-1.10.1.min.js"></script>
+
+<script src="${ctx }/plugins/bootstrap/js/bootstrap.min.js"></script>
+
+<script type="text/javascript" src="${ctx}/plugins/bootstrap-datetimepicker/js/bootstrap-datetimepicker.min.js"></script>
+
+<script type="text/javascript" src="${ctx}/plugins/bootstrap-datetimepicker/js/bootstrap-datetimepicker.zh-CN.js" charset="UTF-8"></script> 
+
+<script src="${ctx }/static/js/jquery.block.js"></script>
+
+<script src="${ctx }/static/js/bootstrap-alert.js"></script>
+
+<script src="${ctx }/static/js/dropload.min.js"></script>
+
+
+<script type="text/javascript" src="file:///android_asset/www/cordova.js"></script>
+<script type="text/javascript" src="file:///android_asset/www/cordova_plugins.js"></script>
+
+
+
+<script>
+	var ctx="${ctx }/";
+
+
+	function onDeviceReady() {
+		try{
+			document.addEventListener("offline", onOffline, false);  
+	        document.addEventListener("online", onOnline, false);  
+			}catch (e) {
+			}
+	}  
+
+   function onOffline(e) {  
+   // Handle the offline event  
+
+       //alert("网络连接未连接");  
+	   top.location="file:///android_asset/www/nonetwork.html";
+   }  
+
+   function onOnline() {
+   // Handle the offline event  
+        $.alertSuccess("网络已切换，当前连接正常");         
+   }  
+
+	$(function(){
+		//onDeviceReady();
+	});
+</script>

@@ -1,0 +1,68 @@
+package com.ybt.web.controller;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Message;
+import com.ybt.base.service.IMessageService;
+import com.ybt.web.util.Constants;
+
+@Controller
+@RequestMapping(value="/personal/")
+public class MessagePortalController {
+	
+	@Resource
+	private IMessageService messageService;
+	
+	@RequestMapping(value="myselfMessage")
+	public ModelAndView myselfMessage(HttpServletRequest request){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("personal/message");
+		//Member member =(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		//List<Message> lists = messageService.getSelfMessage(member.getTel());
+		//把消息设置为已读
+		//messageService.makeSelfMessageHadReaded(member.getTel());
+		//mv.addObject("lists", lists);
+		mv.addObject("type","0");
+		return mv;
+	}
+	
+	@RequestMapping(value="platformMessage")
+	public ModelAndView platformMessage(HttpServletRequest request){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("personal/message");
+		//Member member =(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		//List<Message> lists = messageService.getPlatformMessages();
+		//mv.addObject("lists", lists);
+		mv.addObject("type","1");
+		return mv;
+	}
+	
+	
+	@RequestMapping(value="pageFromMessage",description="消息加载列表")
+	public ModelAndView pageFromMessage(HttpServletRequest request,String mtype,int currentPage){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("personal/load");
+		Member member =(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();	
+		filters.addFilter("reciver", member.getTel(), MatchType.EQ);
+		filters.addFilter("mtype", mtype, MatchType.EQ);
+		Page<Message> page=new Page<Message>();
+		page.setCurrentPage(currentPage);
+		page.setPageSize(6);
+		page.setOrderBy("addTime");
+		page.setOrder("desc");
+		page=messageService.findPagesByFilters(page, filters);
+		mv.addObject("page", page);
+		return mv;
+	}
+	
+}

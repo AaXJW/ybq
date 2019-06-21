@@ -1,0 +1,53 @@
+package com.ybt.base.service;
+
+import java.util.Date;
+
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Territory;
+import com.ybt.base.entity.enums.TerritoryEnum;
+
+public interface ITerritoryService extends IGeneralService<Territory> {
+
+	/**
+	 * 新加入扩展节点
+	 * @param user
+	 * @param isTop
+	 */
+	public Territory extionTerritory(Member user,TerritoryEnum toTerritoryType,Long territoryAreaId);
+	
+	public Territory extionTerritory(String userId,TerritoryEnum toTerritoryType,Long territoryAreaId);
+	
+	
+	/**
+	 * 扩展子节点
+	 * @param parent
+	 * @param curent
+	 * @param totallevel
+	 * @param inGroupLevel
+	 */
+	public void extionChild(Territory parent,int curent,int totallevel);
+	
+	public Territory getTerritoryByUser(String userId,Long territoryAreaId);
+	
+	/**
+	 * 是否符合团购成功条件
+	 * @param groupLeaderId
+	 * @return
+	 */
+	public boolean isFullStarffed(long groupLeaderId,Long territoryAreaId);
+	
+	public boolean isCompetitive(long groupLeaderId,Long territoryAreaId);
+	
+	public boolean compete(String userId,Long territoryAreaId);
+	
+	public boolean canGetRecPrices(String userId,Long territoryAreaId);
+	
+	
+	public void cancelPlaceHold(String tel);
+	
+	
+	public void terHasExtention(Territory ter);
+	//public boolean outSet();
+	
+}

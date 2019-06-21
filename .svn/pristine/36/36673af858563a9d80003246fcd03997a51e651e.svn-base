@@ -1,0 +1,36 @@
+package com.ybt.base.service.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.jiufengxinxi.utils.Assert;
+import com.ybt.base.dao.IProxyAreaDao;
+import com.ybt.base.entity.ProxyArea;
+import com.ybt.base.service.IProxyAreaService;
+
+/** 
+ * 说明： 代理区service
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+@Service
+@Transactional
+public class ProxyAreaService extends GeneralServiceImpl<ProxyArea, IProxyAreaDao> implements IProxyAreaService{
+
+	@Override
+	public boolean setState(String id,boolean state) throws BusinessException {
+		Assert.notNull(id, "id not null！");
+		ProxyArea entity = super.findById(id);
+		if(null != entity){
+			entity.setState(state);
+			return true;
+		}else{
+			throw new BusinessException("找不到您要操作的数据！");
+		}
+	}
+	
+}
+

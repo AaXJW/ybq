@@ -1,0 +1,17 @@
+package com.ybt.base.service;
+
+import java.util.List;
+
+import com.jiufengxinxi.core.service.IGeneralService;
+import com.ybt.base.entity.TerritoryArea;
+
+public interface ITerritoryAreaService  extends IGeneralService<TerritoryArea>{
+	
+	public void setDefault(long id,Long proxyId);
+
+	public TerritoryArea getDefault(Long proxyId);
+	
+	public TerritoryArea getNextLevelArea(int level,Long proxyId) ;
+	
+	public List<TerritoryArea> canGoIn(int level,Long proxyId);
+}

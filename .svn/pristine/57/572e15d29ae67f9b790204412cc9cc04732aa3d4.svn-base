@@ -1,0 +1,112 @@
+body { 
+	padding-bottom: 70px;
+	background-color: #fff;
+	 }
+.login_backmark{
+    		width: 100%;
+    		height: 100%;
+		    position: absolute;
+		    left: 0px;
+		    top: 0px;
+		    z-index: 0;
+		    background-image: url("${ctx}/static/login/images/car-3.jpg");
+    		background-repeat: no-repeat;
+    		background-position: top center;
+    		background-size:cover;
+    		-moz-background-size:cover;
+    		-webkit-background-size:cover;
+    		-o-background-size:cover;
+    	}
+    	
+    	.login_backmark .login_mark{
+    		width: 100%;
+    		height: 100%;
+    		background-color: #31386F;
+    		filter:alpha(Opacity=60);-moz-opacity:0.6;opacity: 0.6;
+    	}
+    	
+    	.banner-login{
+    		padding: 20px 40px;
+    		z-index: 90;
+    	}
+    	
+    	.input-group-lg > .form-control, .input-group-lg > .input-group-addon, .input-group-lg > .input-group-btn > .btn{
+			padding: 8px 16px;
+		}
+		
+		.form-control-feedback{
+			margin-right: 35px;
+		}
+		
+		.vcode-group .form-control-feedback{
+			margin-right: 120px;
+		}
+		
+		.form-group{
+			position: relative;
+			margin: 25px auto;
+		}
+		
+		.help-block{
+			background-color: #fff;
+			padding: 5px 3px 3px 3px;
+    		/**background-color:#f2dede;
+    		border-bottom-right-radius: 4px;
+    		border-bottom-left-radius: 4px;
+    		border: 1px #f2dede solid;
+    		border-top: none;*/
+    		margin-top: -5px;
+    		position: absolute;
+    		left: 0px;
+    		bottom: -20px;
+    		/**width: 100%;*/
+    		z-index: 0;
+		}
+		
+		
+		.submit{
+			position: fixed;
+			bottom: 0px;
+			left: 0px;
+			border-top-right-radius: 0px;
+    		border-top-left-radius: 0px;
+    		padding: 20px 0;
+    		z-index: 9999;
+		}
+		
+		.login-ct{
+			margin-top: 80px;
+			border-bottom: none;
+		}
+		
+		.login-ct .panel-heading{
+			border-bottom: none;
+		}
+		
+		.logo{
+			margin-top: -50px;
+		}
+		
+		/**.panel-default{
+			border: none;
+		}*/
+		
+		.login-head h2{
+			margin-top: 5px;
+			margin-bottom: 0px;
+			color: #e95420;
+		}
+		.login-head h5{
+			margin-top: 0px;
+			margin-bottom: 5px;
+			color: #ccc;
+		}
+		
+		.panel-body .alert{
+			margin-bottom: 5px;
+			padding: 5px 10px;
+		}
+		
+		.lg-title{
+			color: #ccc;
+		}

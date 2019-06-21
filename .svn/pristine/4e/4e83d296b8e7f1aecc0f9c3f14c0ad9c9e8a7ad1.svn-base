@@ -1,0 +1,86 @@
+package com.ybt.base.entity;
+
+import javax.persistence.Entity;
+import javax.persistence.Table;
+
+import com.jiufengxinxi.core.entity.BusinessStringIdEntity;
+@Entity
+@Table(name="T_SYS_MESSAGE")
+public class Message extends BaseStringEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 8414349143516599011L;
+	
+	private String title;
+	
+	private String sender;
+	
+	private String reciver;
+	
+	private String mtype;//0私信，1资讯
+	
+	private String content;
+	
+	private String url;
+	
+	private String state="0";//0未读 1已读
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getSender() {
+		return sender;
+	}
+
+	public void setSender(String sender) {
+		this.sender = sender;
+	}
+
+	public String getReciver() {
+		return reciver;
+	}
+
+	public void setReciver(String reciver) {
+		this.reciver = reciver;
+	}
+
+	public String getMtype() {
+		return mtype;
+	}
+
+	public void setMtype(String mtype) {
+		this.mtype = mtype;
+	}
+
+	public String getContent() {
+		return content;
+	}
+
+	public void setContent(String content) {
+		this.content = content;
+	}
+
+	public String getUrl() {
+		return url;
+	}
+
+	public void setUrl(String url) {
+		this.url = url;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+	
+}

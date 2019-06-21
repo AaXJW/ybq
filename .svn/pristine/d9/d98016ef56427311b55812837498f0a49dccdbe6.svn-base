@@ -1,0 +1,322 @@
+package com.ybt.base.entity;
+
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
+
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.OrderBy;
+import javax.persistence.Table;
+
+import org.apache.commons.lang3.StringUtils;
+import org.hibernate.annotations.Cache;
+import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.jiufengxinxi.core.entity.AbstractTreeEntity;
+import com.jiufengxinxi.core.entity.BusinessLongIdTreeEntity;
+import com.jiufengxinxi.core.entity.annotations.AnnoField;
+
+/**
+ * 团购版图
+ * @author roger
+ *
+ */
+@Entity
+@Table(name="T_YW_TERRITORY")
+@JsonIgnoreProperties({"member","groupInnerTop","parent","plate","children",
+	"groupMemberCount","groupInnerTopId","recommendCount","memberId","placeholderDateTime","beHelp"})
+public class Territory extends BusinessLongIdTreeEntity {
+
+	/**
+	 * 
+	 */
+	private static final Long serialVersionUID = -572294150475782958L;
+	
+	private String memberId;
+	
+	private String territoryName;
+	
+	private Long recommenderId;//推荐人节点id
+	
+	private int recommendCount;//已经推荐个数
+	
+	private Long groupInnerTopId;//爷爷Id
+	
+	private double seatPrice;//位置金额
+	
+	private int state;//0空置,1三级，2二级，3待团购成功(顶层)，4已团购成功
+	
+	private int groupMemberCount;//组内成员人数(为组长时统计，state=3时)
+	
+	private String placeholderTel;//占位用户
+	
+	private Date placeholderDateTime;//占位时间
+	
+	private boolean beHelp=false;//是否被帮助过
+	
+	private String supperTopTel;//超级顶点
+	
+	private String userName;
+	
+	@JsonIgnore
+	@ManyToOne(cascade=CascadeType.REFRESH,fetch=FetchType.LAZY)
+    @JoinColumn(name = "memberId", referencedColumnName = "id", nullable = true,insertable=false,updatable=false)
+    @AnnoField( caption = "用户" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Member member;
+	
+	@JsonIgnore
+	@ManyToOne(cascade=CascadeType.REFRESH,fetch=FetchType.LAZY)
+    @JoinColumn(name = "groupInnerTopId", referencedColumnName = "id", nullable = true,insertable=false,updatable=false)
+    @AnnoField( caption = "爷爷节点" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Territory groupInnerTop;
+	
+	@JsonIgnore
+	@ManyToOne(cascade=CascadeType.REFRESH,fetch=FetchType.LAZY)
+    @JoinColumn(name = "c_parent", referencedColumnName = "id", nullable = true)
+    @AnnoField( caption = "上级" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Territory parent;
+	
+	@JsonIgnore
+	@ManyToOne(cascade=CascadeType.REFRESH,fetch=FetchType.LAZY)
+    @JoinColumn(name = "plate", referencedColumnName = "id", nullable = true,insertable=false,updatable=false)
+    @AnnoField( caption = "所属版块" )
+	@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Plate plate;
+	
+	@Column(name="plate")
+	private String plateId;
+	
+    //@OneToMany(mappedBy = "parent", cascade=CascadeType.ALL, fetch=FetchType.LAZY)
+	@JsonIgnore
+    @OneToMany(mappedBy="parent", cascade={CascadeType.REFRESH, CascadeType.REMOVE},fetch=FetchType.LAZY)
+    @OrderBy(value = "index")
+    @AnnoField( caption = "下级" )
+	//@Cache(usage=CacheConcurrencyStrategy.READ_WRITE)
+    private Set<Territory> children = new HashSet<Territory>();
+	
+	
+	public Territory() {
+		super();
+		this.setDepth(0);
+	}
+
+	
+	public Territory(Territory parent,int level,boolean isleaf,int index,int state) {
+		super();
+		this.state = state;
+		this.setParent(parent);
+		this.setDepth(level);
+		this.setLeaf(isleaf);
+		this.setIndex(index);
+		if(parent!=null){
+			this.setPlateId(parent.getPlateId());
+			if(StringUtils.isEmpty(parent.getParentids())){
+				this.setParentids(parent.getId().toString());
+			}else{
+				this.setParentids(parent.getParentids()+","+parent.getId());
+			}
+		}
+	}
+
+	public String getMemberId() {
+		return memberId;
+	}
+
+	public void setMemberId(String memberId) {
+		this.memberId = memberId;
+	}
+
+	public double getSeatPrice() {
+		return seatPrice;
+	}
+
+	public void setSeatPrice(double seatPrice) {
+		this.seatPrice = seatPrice;
+	}
+
+	public int getState() {
+		return state;
+	}
+
+	public void setState(int state) {
+		this.state = state;
+	}
+
+	public Set<AbstractTreeEntity<Long>> getChildren() {
+		Set<AbstractTreeEntity<Long>> cds=new HashSet<AbstractTreeEntity<Long>>();
+		for(Territory cd:children){
+			cds.add(cd);
+		}
+		return cds;
+	}
+
+	@Override
+	public AbstractTreeEntity<Long> getParent() {
+		return parent;
+	}
+
+	public void setChildren(Set<AbstractTreeEntity<Long>> children) {
+		this.children=new HashSet<Territory>();
+		for(AbstractTreeEntity<Long> cd:children){
+			this.children.add((Territory) cd);
+		}
+	}
+
+	@Override
+	public void setParent(AbstractTreeEntity<Long> parent) {
+		this.parent=(Territory) parent;
+	}
+
+
+	public Plate getPlate() {
+		return plate;
+	}
+
+
+	public void setPlate(Plate plate) {
+		this.plate = plate;
+	}
+
+
+	public String getPlateId() {
+		return plateId;
+	}
+
+
+	public void setPlateId(String plateId) {
+		this.plateId = plateId;
+	}
+
+
+	public void setParent(Territory parent) {
+		this.parent = parent;
+	}
+
+
+	public Long getRecommenderId() {
+		return recommenderId;
+	}
+
+
+	public void setRecommenderId(Long recommenderId) {
+		this.recommenderId = recommenderId;
+	}
+
+
+	public int getRecommendCount() {
+		return recommendCount;
+	}
+
+
+	public void setRecommendCount(int recommendCount) {
+		this.recommendCount = recommendCount;
+	}
+
+
+	public Long getGroupInnerTopId() {
+		return groupInnerTopId;
+	}
+
+
+	public void setGroupInnerTopId(Long groupInnerTopId) {
+		this.groupInnerTopId = groupInnerTopId;
+	}
+
+
+	public int getGroupMemberCount() {
+		return groupMemberCount;
+	}
+
+
+	public void setGroupMemberCount(int groupMemberCount) {
+		this.groupMemberCount = groupMemberCount;
+	}
+
+
+	public Member getMember() {
+		return member;
+	}
+
+
+	public void setMember(Member member) {
+		this.member = member;
+	}
+
+
+	public Territory getGroupInnerTop() {
+		return groupInnerTop;
+	}
+
+
+	public void setGroupInnerTop(Territory groupInnerTop) {
+		this.groupInnerTop = groupInnerTop;
+	}
+
+
+	public String getTerritoryName() {
+		return territoryName;
+	}
+
+
+	public void setTerritoryName(String territoryName) {
+		this.territoryName = territoryName;
+	}
+
+	public String getPlaceholderTel() {
+		return placeholderTel;
+	}
+
+	public void setPlaceholderTel(String placeholderTel) {
+		this.placeholderTel = placeholderTel;
+	}
+
+	public Date getPlaceholderDateTime() {
+		return placeholderDateTime;
+	}
+
+
+	public void setPlaceholderDateTime(Date placeholderDateTime) {
+		this.placeholderDateTime = placeholderDateTime;
+	}
+
+
+	public boolean isBeHelp() {
+		return beHelp;
+	}
+
+
+	public void setBeHelp(boolean beHelp) {
+		this.beHelp = beHelp;
+	}
+
+
+	public String getSupperTopTel() {
+		return supperTopTel;
+	}
+
+
+	public void setSupperTopTel(String supperTopTel) {
+		this.supperTopTel = supperTopTel;
+	}
+
+	public String getUserName() {
+		return userName;
+	}
+
+
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+
+}

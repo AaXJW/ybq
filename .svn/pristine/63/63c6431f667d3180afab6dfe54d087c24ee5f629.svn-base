@@ -1,0 +1,773 @@
+package com.ybt.base.service.impl;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.ybt.base.dao.ITerritoryDao;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Territory;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.entity.enums.TerritoryEnum;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.utill.SystemParameters;
+
+@Service
+@Transactional
+public class TerritoryService extends GeneralServiceImpl<Territory, ITerritoryDao> implements ITerritoryService {
+
+	@Resource
+	private IFundFlowService fundFlowService;
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IApprovalService approvalService;
+
+	@Resource
+	private IMessageService messageService;
+	
+	@Override
+	public synchronized Territory extionTerritory(Member user,TerritoryEnum toTerritoryType) {
+		
+		//新代码
+		synchronized ("extionTerritory_"+user.getProxyArea()) {
+			
+			Territory ter=getTerritoryByUser(user.getId());
+			if(ter!=null){
+				return ter;
+			}
+			
+			Territory territory=null;
+			Date now=new Date();
+			//Territory recomender=null;
+			if(toTerritoryType.isNewVertex()){//是否为新顶点
+				territory=new Territory(null,0,false,0,0);
+				territory.setName(user.getTel());
+				territory.setNames(user.getTel());
+				territory.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());
+				territory.setMemberId(user.getId());
+				territory.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutThrAward());//parameterSet---500000
+				territory.setGroupMemberCount(1);
+				territory.setPlateId(user.getPlateId());
+				territory.setState(2);
+				territory.setAddTime(now);
+				territory.setAddUserId(user.getId());
+				territory.setSupperTopTel(user.getTel());
+				territory.setProxyArea(user.getProxyArea());//设置代理 区
+				territory=save(territory);
+				user.setTerritoryCount(1);
+				user.setTerritoryState(1);
+				//user.setLastTerritoryTime(now);
+				territory.setProxyArea(user.getProxyArea());
+				memberService.save(user);
+				//territory.setGroupInnerTopId(territory.getId());
+				extionChild(territory,1,SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel());//parameterSet---9
+				return territory;
+			}
+			
+			
+			
+			
+			Territory temp=getTerritoryByUser(user.getId());
+			if(temp!=null){
+				throw new BusinessException("你已经在游戏中了，不能重复参与");
+			}
+			
+			
+			territory=findUniqueByProperty("placeholderTel", user.getTel());//用户是否已经占位
+			Territory parent=null;
+			if(territory!=null){//抢位用户
+				String castUserId=null;
+				if(user.getTerritoryCount()>0){//用户为复投抢位
+					castUserId=user.getId();
+					territory.setName(user.getTel()+"_"+(user.getTerritoryCount()));
+					user.setTerritoryState(3);
+				}else{//为新用户抢位
+					castUserId=user.getRecommenderId();
+					territory.setName(user.getTel());
+				}
+				territory.setPlaceholderTel("done");
+				fundFlowService.addFundFlow(FundTypeEnum.COMPETE, castUserId,territory.getSeatPrice());//竞位奖
+			}else{//非抢位
+				/*List<Integer> states=new ArrayList<Integer>();
+				states.add(1);
+				states.add(2);
+				states.add(3);*/
+				ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+				lFilter.addFilter("parent.memberId", MatchType.ISNOTNULL);
+				//lFilter.addFilter("parent.state", states, MatchType.IN);
+				lFilter.addFilter("state", 0, MatchType.EQ);//空节点
+				lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+				//lFilter.addFilter("seatPrice", 0, MatchType.EQ);
+				lFilter.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+				Page<Territory> pageTerritory=new Page<Territory>();
+				
+				pageTerritory.setOrderBy("piid,depth,id,index");//先左节点再右节点
+				pageTerritory.setOrder("desc,asc,asc,asc");
+				pageTerritory.setPageSize(1);
+				if(toTerritoryType.isReCast()&&user.getLastTerritoryTime()!=null){//一般复役
+					//Territory reUser=findUniqueByProperty("name", user.getTel());
+					//String topTel=reUser.getNames().split(",")[0];
+					
+					/*lFilter.addFilter("parent.memberId", MatchType.ISNOTNULL);
+					lFilter.addFilter("parent.state", states, MatchType.IN);
+					lFilter.addFilter("state", 0, MatchType.EQ);//空节点
+					lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+					lFilter.addFilter("seatPrice", 0, MatchType.EQ);
+					lFilter.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+					lFilter.addFilter("parent.beHelp", false, MatchType.EQ);//父节点没有被帮助过
+					String orderby="depth,index";
+					String order="asc,asc";
+					
+					//Page<Territory> pageTerritory=new Page<Territory>();
+					
+					pageTerritory.setOrderBy("depth,id,index");//先左节点再右节点
+					pageTerritory.setOrder("asc,asc,asc");
+					pageTerritory.setPageSize(1);*/
+					lFilter.addFilter("seatPrice", 0, MatchType.EQ);
+					lFilter.addFilter("parent.beHelp", false, MatchType.EQ);//父节点没有被帮助过
+					pageTerritory=findPagesByFilters(pageTerritory, lFilter);
+					if(pageTerritory.getRowCount()>0){
+						territory=pageTerritory.getResult().get(0);
+						territory.setName(user.getTel()+"_"+(user.getTerritoryCount()));
+						user.setTerritoryState(3);
+					}else{
+						throw new BusinessException("当前不复合复投条件");
+					}
+				}else{
+					Territory recomTer=getTerritoryByUser(user.getRecommenderId());
+					
+					//Page<Territory> pageTerritory=new Page<Territory>();
+					ListPropertyFilter tFilter=ListPropertyFilter.getInstance().addFilter("piid", "1", MatchType.EQ).addFilter("state", 0, MatchType.EQ);
+					pageTerritory=findPagesByFilters(pageTerritory, tFilter);//先查找优先位
+					if(pageTerritory.getRowCount()==0){
+						if(recomTer!=null){//推荐人在游戏中
+							terHasExtention(recomTer);
+							//lFilter.addFilter("parentids", (StringUtils.isNotEmpty(recomTer.getParentids())?recomTer.getParentids()+",":"")+recomTer.getId(), MatchType.LIKER);//上级为用户介绍人或组长为用户介绍人
+							Long recCount=getCount(" where e.depth < ?1 and e.names like ?2 and e.recommenderId=?3", new Object[] {recomTer.getDepth()+3,"%"+recomTer.getName()+",%",recomTer.getId()});
+							recomTer.setRecommendCount(recCount.intValue());
+							recomTer=save(recomTer);
+							if(recomTer.getRecommendCount()>=2){//如果已经推荐2个人，则只能推荐到组外
+								lFilter.addFilter("parent.groupInnerTopId", recomTer.getId(), MatchType.NE);
+								lFilter.addFilter("parent.beHelp", false, MatchType.EQ);//父节点没有被帮助过
+							}
+							if(!(recomTer.getRecommendCount()>=2&&recomTer.getState()==2)){
+								lFilter.addFilter("parentids", (StringUtils.isNotEmpty(recomTer.getParentids())?recomTer.getParentids()+",":"")+recomTer.getId(), MatchType.LIKER);
+							}
+							//lFilter.addFilter(new String[]{"parent.beHelp","parent.id"}, new Object[]{false,recomTer.getId()}, new MatchType[]{MatchType.EQ,MatchType.EQ});//父节点没有被帮助过
+						}/*else{
+							lFilter.addFilter("parent.beHelp", false, MatchType.EQ);//父节点没有被帮助过
+						}*/
+						/*List<Integer> states=new ArrayList<Integer>();
+						states.add(1);
+						states.add(2);
+						states.add(3);*/
+						/*lFilter.addFilter("parent.beHelp", false, MatchType.EQ);//父节点没有被帮助过
+						lFilter.addFilter("parent.state", states, MatchType.IN);
+						lFilter.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+						lFilter.addFilter("parent.memberId", MatchType.ISNOTNULL);//\
+						lFilter.addFilter("state", 0, MatchType.EQ);//空节点
+	 					lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);//beHelp
+	 					lFilter.addFilter("seatPrice", 0, MatchType.EQ);
+						pageTerritory.setOrderBy("depth,id,index");//先左节点再右节点
+						pageTerritory.setOrder("asc,asc,asc");
+						pageTerritory.setPageSize(1);*/
+						pageTerritory=findPagesByFilters(pageTerritory, lFilter);
+					}
+					
+					if(pageTerritory.getTotalCount()>0){
+						territory=pageTerritory.getResult().get(0);
+						territory.setName(user.getTel());
+					}else{
+						throw new BusinessException("当前不符合占位条件");
+					}
+					
+					user.setTerritoryState(1);
+					
+					if(territory.getParent().getDepth()!=0){//上级不为顶级节点
+						if(recomTer!=null&&territory.getParent().getId().equals(recomTer.getId())){
+							parent=recomTer;
+						}else{
+							parent=(Territory)territory.getParent();
+						}
+						
+						if(recomTer!=null&&(territory.getDepth()-recomTer.getDepth()<=2)){//新节点为介绍人组内节点
+							recomTer.setRecommendCount(recomTer.getRecommendCount()+1);
+							recomTer.setModifyTime(now);
+							save(recomTer);
+							territory.setRecommenderId(recomTer.getId());
+							if(!recomTer.getMemberId().equals(parent.getMemberId())){//介绍人不是上级则上级是被帮助的
+								parent.setBeHelp(true);
+							}
+						}else{//如果新节点在介绍人组外，则父节点是被帮助的
+							parent.setBeHelp(true);
+						}
+						
+						setSeatPrice(parent);
+						save(parent);
+					}
+					
+				}
+			}
+			if(StringUtils.isEmpty(territory.getName())){
+				territory.setName(user.getTel());
+			}
+			territory.setMemberId(user.getId());
+			territory.setState(1);
+			territory.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryThirdName());
+			territory.setUserName(user.getName());
+			user.setTerritoryCount(user.getTerritoryCount()+1);
+			//user.setLastTerritoryTime(new Date());
+			territory.setProxyArea(user.getProxyArea());
+			territory=save(territory);
+			
+			terHasExtention(territory);
+			
+			memberService.save(user);
+			
+			if(parent==null&&territory.getParentId()!=null){
+				parent=(Territory)territory.getParent();
+				parent.setModifyTime(now);
+			}
+			territory.setNames(parent==null?territory.getName():parent.getNames()+","+territory.getName());
+			String pids=StringUtils.isEmpty(parent.getParentids())?parent.getId()+"":parent.getParentids()+","+parent.getId();
+			territory=save(territory);
+			if(hasGrandson(pids,parent.getDepth(),user.getPlateId())){//是否有孙子节点，有则升级为车神
+				parent.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());//上级节点下两层都已经有人，升级为组长，下级树扩展至9层
+				parent.setState(3);
+				extention2self(parent);
+			}else{
+				parent.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritorySecondName());
+				parent.setState(2);
+			}
+			
+			parent=save(parent);
+			
+			if(territory.getGroupInnerTopId()!=null){
+				Territory grouptop=findById(territory.getGroupInnerTopId());
+				if(grouptop.getDepth()!=0&&grouptop.getMemberId().equals(user.getRecommenderId())){
+					/*if(grouptop.getRecommendCount()<2){
+						grouptop.setRecommendCount(grouptop.getRecommendCount()+1);//推荐人为组长
+					}*/
+					territory.setRecommenderId(grouptop.getId());
+				}
+				grouptop.setState(3);
+				grouptop.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());
+				grouptop.setGroupMemberCount(getGroupMemberCount(grouptop).intValue());
+				
+				setSeatPrice(grouptop);
+				
+				
+				//parent.setGroupMemberCount(parent.getGroupMemberCount()+1);
+				//if()
+				
+				grouptop=save(grouptop);
+				//territory=save(territory);
+				//parent=save(parent);
+				
+				//long gmc=getGroupMemberCount(grouptop);
+				
+				if(grouptop.getGroupMemberCount()==7){
+					/**
+					 * 达到团购成功要求、组长团购成功，二级升组长，二级要扩展下发节点至9层
+					 */
+					/*if(grouptop.getRecommendCount()<2){
+						territory.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutAllAward()-grouptop.getSeatPrice());//parameterSet---500000  团购成功金额
+						fundFlowService.addFundFlow(FundTypeEnum.COPITITIVE_AWARD, territory.getMemberId(), territory.getSeatPrice());//竞位奖
+						if(user.getBalance()>=SystemParameters.SYSTEM_PARAMETER.getCompetePrice()){
+							fundFlowService.addFundFlow(FundTypeEnum.COMPETE, user.getId(), SystemParameters.SYSTEM_PARAMETER.getCompetePrice());//
+						}
+						
+					}*/
+					grouptop.setState(4);
+					grouptop.setModifyTime(now);
+					grouptop.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());
+					Member topMember=grouptop.getMember();
+					topMember.setTerritoryState(2);
+					topMember.setLastTerritoryTime(now);
+					topMember.setModifyTime(now);
+					memberService.save(topMember);
+
+					fundFlowService.addFundFlow(FundTypeEnum.OUT_AWARD, grouptop.getMemberId(), grouptop.getSeatPrice());//团购成功奖金
+					
+					/*List<Territory> sconds=findByFilters(ListPropertyFilter.getInstance().addFilter("parent.id", grouptop.getId(), MatchType.EQ));
+					for(Territory ter:sconds){
+						ter.setGroupInnerTopId(ter.getId());
+						extionChild(ter,ter.getDepth()+1,ter.getDepth()+SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()-1);
+					}*/
+					
+					grouptop=save(grouptop);
+					messageService.addSelfMessage(grouptop.getMember().getTel(), "system", "恭喜您成功团购成功", "恭喜您已经成功团购成功，您可以进行复投或等待时机抢夺抢单位", "/team/territory.htm",user.getProxyArea());
+				}else if(grouptop.getGroupMemberCount()==6){
+					setCompeteSite(grouptop);//设置竞争位
+				}
+			}
+			
+			this.getDefaultDAO().getEntityManager().flush();
+			this.getDefaultDAO().getEntityManager().clear();
+			return save(territory);
+		}
+		
+		
+		
+		
+		
+		
+		
+		
+		//此下为旧代码
+		
+		/*synchronized (user.getPlateId()) {
+			if(toTerritoryType.isReCast()&&user.getLastTerritoryTime()!=null){//是否为复投
+				ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+				//lFilter.addFilter("parent.state", new Integer[]{2,3}, MatchType.IN);//上级为组内二级或组长
+				lFilter.addFilter("parent.memberId", MatchType.ISNOTNULL);
+				lFilter.addFilter("state", 0, MatchType.EQ);//空节点
+				lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+				String orderby="depth,index";
+				String order="asc,asc";
+				if(user.getBalance()>SystemParameters.SYSTEM_PARAMETER.getCompetePrice()){
+					//lFilter.addFilter("seatPrice", 0, MatchType.GT);
+					orderby="seatPrice,"+orderby;
+					order="desc,"+order;
+				}
+				
+				Page<Territory> pageTerritory=new Page<Territory>();
+				
+				pageTerritory.setOrderBy(orderby);//先左节点再右节点
+				pageTerritory.setOrder(order);
+				pageTerritory.setPageSize(1);
+				pageTerritory=findPagesByFilters(pageTerritory, lFilter);
+				//List<Territory> territories=findByFilters(lFilter);
+				if(pageTerritory.getRowCount()>0){
+					territory=pageTerritory.getResult().get(0);
+					territory.setName(user.getTel()+"_"+(user.getTerritoryCount()+1));
+				}else{
+					throw new BusinessException("当前不复合复投条件");
+				}
+				
+				user.setTerritoryState(3);
+			}else if(StringUtils.isNotEmpty(user.getRecommendertel())){
+								
+				Territory recomTer=getTerritoryByUser(user.getRecommenderId());
+				
+				if(recomTer==null){
+					throw new BusinessException("推荐人已经团购成功或推荐人不存在，该用户不符合占位条件");
+				}
+				
+				if(recomTer.getRecommendCount()>=2){
+					throw new BusinessException("推荐人已经完成2个推荐名额，该用户不符合占位条件");
+				}
+				
+				Page<Territory> pageTerritory=new Page<Territory>();
+				ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+				lFilter.addFilter("parentids", recomTer.getParentids()+","+recomTer.getId(), MatchType.LIKER);//上级为用户介绍人或组长为用户介绍人
+				//lFilter.addFilter("parent.state", new Integer[]{2,3}, MatchType.IN);//上级为组内二级或组长
+				lFilter.addFilter("state", 0, MatchType.EQ);//空节点
+				lFilter.addFilter("plateId", user.getPlateId(), MatchType.EQ);
+				pageTerritory.setOrderBy("depth,index");//先左节点再右节点
+				pageTerritory.setOrder("asc,asc");
+				pageTerritory.setPageSize(1);
+				pageTerritory=findPagesByFilters(pageTerritory, lFilter);
+				
+				//List<Territory> territories=findByFilters(lFilter);
+				if(pageTerritory.getTotalCount()>0){
+					territory=pageTerritory.getResult().get(0);
+					territory.setName(user.getTel());
+				}else{
+					throw new BusinessException("当前不符合占位条件");
+				}
+				
+				user.setTerritoryState(1);
+				
+				fundFlowService.addFundFlow(FundTypeEnum.RECOMMEND_AWARD, user.getRecommenderId(), SystemParameters.SYSTEM_PARAMETER.getRecomendAward());//推荐奖  parameterSet---8000
+
+			}
+			territory.setMemberId(user.getId());
+			territory.setState(1);
+			territory.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryThirdName());
+			
+			user.setTerritoryCount(user.getTerritoryCount()+1);
+			//user.setLastTerritoryTime(new Date());
+			territory=save(territory);
+			memberService.save(user);
+		
+		
+			if(territory.getParent()!=null){//有上级节点
+				Territory parent=(Territory)territory.getParent();
+				
+				if(parent.getMemberId().equals(user.getRecommenderId())){
+					parent.setRecommendCount(parent.getRecommendCount()+1);//推荐人为上级
+					territory.setRecommenderId(parent.getId());
+				}
+				parent.setGroupMemberCount(parent.getGroupMemberCount()+1);
+				
+				String pids=StringUtils.isEmpty(parent.getParentids())?parent.getId()+"":parent.getParentids()+","+parent.getId();
+				territory=save(territory);
+				if(hasGrandson(pids,parent.getDepth(),user.getPlateId())){//是否有孙子节点，有则升级为车神
+					parent.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());//上级节点下两层都已经有人，升级为组长，下级树扩展至9层
+					parent.setState(3);
+					extention2self(parent);
+				}else{
+					parent.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritorySecondName());
+					parent.setState(2);
+				}
+				
+				parent=save(parent);
+				
+				if(territory.getGroupInnerTopId()!=null){
+					Territory grouptop=territory.getGroupInnerTop();
+					if(grouptop.getMemberId().equals(user.getRecommenderId())){
+						grouptop.setRecommendCount(grouptop.getRecommendCount()+1);//推荐人为组长
+						territory.setRecommenderId(grouptop.getId());
+					}
+					grouptop.setState(3);
+					grouptop.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());
+					grouptop.setGroupMemberCount(grouptop.getGroupMemberCount()+1);
+					
+					switch(grouptop.getRecommendCount()){
+						case 0: grouptop.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutThrAward()); break;//parameterSet---250000 
+						case 1: grouptop.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutSecAward()); break;//parameterSet---350000 
+						case 2: grouptop.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutAllAward()); break;//parameterSet---500000 
+					}
+					
+					
+					//parent.setGroupMemberCount(parent.getGroupMemberCount()+1);
+					//if()
+					
+					grouptop=save(grouptop);
+					//territory=save(territory);
+					//parent=save(parent);
+					
+					if(grouptop.getGroupMemberCount()==7){
+						*//**
+						 * 达到团购成功要求、组长团购成功，二级升组长，二级要扩展下发节点至9层
+						 *//*
+						if(grouptop.getRecommendCount()<2){
+							territory.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutAllAward()-grouptop.getSeatPrice());//parameterSet---500000  团购成功金额
+							fundFlowService.addFundFlow(FundTypeEnum.COPITITIVE_AWARD, territory.getMemberId(), territory.getSeatPrice());//竞位奖
+							if(user.getBalance()>=SystemParameters.SYSTEM_PARAMETER.getCompetePrice()){
+								fundFlowService.addFundFlow(FundTypeEnum.COMPETE, user.getId(), SystemParameters.SYSTEM_PARAMETER.getCompetePrice());//
+							}
+							
+						}
+						grouptop.setState(4);
+						grouptop.setTerritoryName(SystemParameters.SYSTEM_PARAMETER.getTerritoryTopName());
+						grouptop.getMember().setTerritoryState(2);
+						grouptop.getMember().setLastTerritoryTime(now);
+						memberService.save(grouptop.getMember());
+	
+						fundFlowService.addFundFlow(FundTypeEnum.OUT_AWARD, grouptop.getMemberId(), grouptop.getSeatPrice());//团购成功奖金
+						
+						List<Territory> sconds=findByFilters(ListPropertyFilter.getInstance().addFilter("parent.id", grouptop.getId(), MatchType.EQ));
+						for(Territory ter:sconds){
+							ter.setGroupInnerTopId(ter.getId());
+							extionChild(ter,ter.getDepth()+1,ter.getDepth()+SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()-1);
+						}
+						
+						grouptop=save(grouptop);
+					}else if(grouptop.getGroupMemberCount()==6){
+						Territory grandson=getLastGrandson(grouptop.getId(),grouptop.getDepth(),user.getPlateId());
+						if(grandson!=null){
+							if(grouptop.getSeatPrice()!=SystemParameters.SYSTEM_PARAMETER.getOutAllAward()){
+								grandson.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutAllAward()-grouptop.getSeatPrice());//设置竞争位
+								save(grandson);
+							}
+						}
+					}
+				}
+				
+				
+			}
+			
+			
+			*//**
+			 * 开启一个竞争位
+			 *//*
+			else if(grouptop.getGroupMemberCount()==6&&grouptop.getRecommendCount()<2){
+				
+			}
+			
+			if(isCompetitive(territory.getGroupInnerTopId())){
+				
+			}
+			
+			this.getDefaultDAO().getEntityManager().flush();
+			this.getDefaultDAO().getEntityManager().clear();
+			return save(territory);
+		}*/
+	}
+	
+	
+	/*private Territory getGrandson(){
+		
+	}*/
+	
+	
+	private void extention2self(Territory ter){
+		String pids=StringUtils.isEmpty(ter.getParentids())?ter.getId()+"":ter.getParentids()+","+ter.getId();
+		Number maxlevel=getMaxValue("depth", " where e.parentids like ?1", new Object[]{pids+"%"});
+		if(maxlevel.intValue()-ter.getDepth()<=3){
+			List<Territory> ters=findByFilters(ListPropertyFilter.getInstance()
+					.addFilter("parentids", pids, MatchType.LIKER)
+					.addFilter("depth", maxlevel.intValue(), MatchType.EQ));
+			if(ters!=null){
+				for(Territory terr:ters){
+					terr.setProxyArea(ter.getProxyArea());
+					extionChild(terr,terr.getDepth()+1,ter.getDepth()+8);
+				}
+			}
+		}
+	}
+	
+	private void setSeatPrice(Territory ter){
+		switch(ter.getRecommendCount()){
+		case 0: ter.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutThrAward()); break;//parameterSet---250000 
+		case 1: ter.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutSecAward()); break;//parameterSet---350000 
+		case 2: ter.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getOutAllAward()); break;//parameterSet---500000 
+	}
+	}
+	
+	private Long getGroupMemberCount(Territory territory){
+		ListPropertyFilter lpf=ListPropertyFilter.getInstance()
+				.addFilter("parentids", territory.getDepth()==0?territory.getId():territory.getParentids()+","+territory.getId(), MatchType.LIKER)
+				.addFilter("state", 0, MatchType.NE)
+				.addFilter("depth", territory.getDepth()+2, MatchType.LE);
+		
+		Page<Territory> page=new Page<Territory>();
+		page.setPageSize(0);
+		
+		page=findPagesByFilters(page, lpf);
+		/*Long count=getCount(" where e.parentids like ?1 and e.state <> 0 and e.depth <= ?2"
+				, new Object[]{(territory.getDepth()==0?territory.getId():territory.getParentids()+","+territory.getId())+"%"
+						,territory.getDepth()+2});*/
+		return page.getTotalCount()+1;
+	}
+	
+	private void setCompeteSite(Territory territory){
+		if(territory.getState()!=3||territory.getRecommendCount()==2){
+			return;
+		}
+		List<Territory> ters=findByFilters(ListPropertyFilter.getInstance()
+				.addFilter("parentids", territory.getDepth()==0?territory.getId():territory.getParentids()+","+territory.getId(), MatchType.LIKER)
+				.addFilter("state", 0, MatchType.EQ)
+				.addFilter("depth", territory.getDepth()+2, MatchType.EQ));
+		
+		if(ters==null||ters.size()==0){
+			return;
+		}
+		
+		Territory grandson=ters.get(0);
+		//if(territory.getSeatPrice()!=SystemParameters.SYSTEM_PARAMETER.getOutAllAward()){
+		grandson.setSeatPrice(SystemParameters.SYSTEM_PARAMETER.getGrabOrderPrice());//设置竞争位
+		save(grandson);
+		//}
+	}
+	
+	
+	/**
+	 * 判断是否有可用的孙子节点
+	 * @param grandfIds
+	 * @param level
+	 * @return
+	 */
+	private boolean hasGrandson(String grandfIds,int level,String plateId){
+		long count=this.getDefaultDAO().getCount("where e.parentids like ?1 and e.depth = ?2 and e.memberId is not null and e.plateId=?3", new Object[]{grandfIds+"%",level+2,plateId});
+		return count>0;
+	}
+	
+	private Territory getLastGrandson(Long id,int level,String plateId){
+		List<Territory> ters=findByFilters(ListPropertyFilter.getInstance().
+				addFilter("groupInnerTopId", id, MatchType.EQ).
+				addFilter("depth", level+2, MatchType.EQ).
+				addFilter("memberId", MatchType.ISNULL).
+				addFilter("plateId", plateId, MatchType.EQ).
+				setOrderBy("index,id").setOrder("desc,desc"));
+		return ters!=null&&ters.size()==1?ters.get(0):null;
+	}
+	
+	public void terHasExtention(Territory ter){
+		long count=getCount("where e.parentids like ?1", new Object[]{(StringUtils.isNotEmpty(ter.getParentids())?ter.getParentids()+",":"")+ter.getId()+"%"});
+		if(count==0){
+			extionChild(ter,ter.getDepth()+1,ter.getDepth()+(SystemParameters.SYSTEM_PARAMETER.getAreaMaxLevel()/2));
+		}
+	}
+	
+	@Override
+	public Territory extionTerritory(String userId,
+			TerritoryEnum toTerritoryType) {
+		Member user=memberService.findById(userId);
+		if(user==null){
+			throw new BusinessException("用户不存在");
+		}
+		
+		return extionTerritory(user,toTerritoryType);
+	}
+
+	@Override
+	public void extionChild(Territory parent, int curent, int totallevel) {
+		if(curent>totallevel){
+			return;
+		}
+		
+		Territory left=null;
+		Territory right=null;
+		
+		List<Territory> sconds=findByFilters(ListPropertyFilter.getInstance().addFilter("parent.id", parent.getId(), MatchType.EQ).setOrderBy("index"));
+		
+		if(sconds!=null&&sconds.size()==2){
+			Date now=new Date();
+			left=sconds.get(0);
+			right=sconds.get(1);
+			left.setModifyUserId(parent.getModifyUserId());
+			right.setModifyUserId(parent.getModifyUserId());
+			left.setModifyTime(now);
+			right.setModifyTime(now);
+		}else{
+			left=new Territory(parent,curent,false,1,0);
+			right=new Territory(parent,curent,false,2,0);
+			left.setName("左空位");
+			right.setName("右空位");
+			left.setAddUserId(parent.getAddUserId());
+			right.setAddUserId(parent.getAddUserId());
+		}
+		
+		left.setProxyArea(parent.getProxyArea());
+		right.setProxyArea(parent.getProxyArea());
+		if(parent.getParent()!=null){
+			left.setGroupInnerTopId(parent.getParent().getId());//设置组长ID
+			right.setGroupInnerTopId(parent.getParent().getId());
+		}else{
+			left.setGroupInnerTopId(parent.getId());//设置组长ID
+			right.setGroupInnerTopId(parent.getId());
+		}
+		
+		left.setNames(parent.getNames()+","+left.getName());
+		right.setNames(parent.getNames()+","+right.getName());
+		left.setSupperTopTel(parent.getSupperTopTel());
+		right.setSupperTopTel(parent.getSupperTopTel());
+		left=save(left);
+		right=save(right);
+		
+		//left.setId(gid());
+		/*if(curent<=inGroupLevel){
+			
+			if(left.getState()!=0){
+				if(curent==inGroupLevel){
+					left.setName("左"+SystemParameters.SYSTEM_PARAMETER.getTerritoryThirdName());
+					left.setState(1);
+					right.setName("右"+SystemParameters.SYSTEM_PARAMETER.getTerritoryThirdName());//parameterSet---车夫
+					right.setState(1);
+				}
+				if(curent==inGroupLevel-1){
+					left.setName("左"+SystemParameters.SYSTEM_PARAMETER.getTerritorySecondName());//parameterSet---车迷
+					left.setState(2);
+					right.setName("右"+SystemParameters.SYSTEM_PARAMETER.getTerritorySecondName());
+					right.setState(2);
+				}
+			}
+		}*/
+		extionChild(left,curent+1,totallevel);
+		
+		//right.setId(gid());
+		
+		extionChild(right,curent+1,totallevel);
+	}
+
+	@Override
+	public boolean isFullStarffed(long groupLeaderId) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isCompetitive(long groupLeaderId) {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+
+	@Override
+	public Territory getTerritoryByUser(String userId) {
+		Territory ter=null;
+		List<Territory> terrs=findByFilters(ListPropertyFilter.getInstance()
+				.addFilter("memberId", userId, MatchType.EQ)
+				.addFilter("state", Arrays.asList(new Integer[]{0,4}), MatchType.NOTIN).setOrderBy("addTime").setOrder("asc"));
+		if(terrs!=null&&terrs.size()>0) {
+			ter=terrs.get(0);
+		}
+		return ter;
+	}
+
+
+	@Override
+	public synchronized boolean compete(String userId) {
+		Member user=memberService.findById(userId);
+		if(!memberService.isCanCompete(userId)&&!memberService.isCanCompete(user.getRecommenderId())){
+			return false;
+		}
+		
+		ListPropertyFilter filters=ListPropertyFilter.getInstance()
+				.addFilter("seatPrice", 0, MatchType.GT)
+				.addFilter("state", 0, MatchType.EQ)
+				.addFilter("placeholderTel",MatchType.ISNULL)
+				.addFilter("groupInnerTop.memberId",user.getId(),MatchType.NE);
+		/*Territory reUser=findUniqueByProperty("name", StringUtils.isNotEmpty(user.getRecommendertel())?user.getRecommendertel():user.getTel());
+		if(reUser!=null){*/
+			filters.addFilter("supperTopTel", user.getAreaTop(), MatchType.EQ);
+		//}
+		if(StringUtils.isNotEmpty(user.getRecommendertel())){
+			filters.addFilter("groupInnerTopId", user.getRecommenderId(), MatchType.NE);
+		}
+		Page<Territory> pageTerritory=new Page<Territory>();
+		pageTerritory.setPageSize(1);
+		pageTerritory.setOrderBy("depth");
+		pageTerritory=findPagesByFilters(pageTerritory, filters);
+		if(pageTerritory.getTotalCount()<=0){
+			return false;
+		}
+		Territory ter=pageTerritory.getResult().get(0);
+		ter.setPlaceholderTel(user.getTel());
+		ter.setPlaceholderDateTime(new Date());
+		save(ter);
+		approvalService.applyApproval(user, 3, SystemParameters.SYSTEM_PARAMETER.getCompetePrice(), user.getState()==0?user.getRecommendertel()+"的抢单点位申请":"抢单申请");
+		return true;
+	}
+
+	public void cancelPlaceHold(String tel){
+		ListPropertyFilter filters=ListPropertyFilter.getInstance()
+				.addFilter("placeholderTel",tel,MatchType.EQ);
+		List<Territory> ters=this.findByFilters(filters);
+		if(ters!=null&&ters.size()>0){
+			for(Territory ter:ters){
+				ter.setPlaceholderTel(null);
+				save(ter);
+			}
+		}
+	}
+
+	@Override
+	public boolean canGetRecPrices(String userId) {
+		Territory ter=getTerritoryByUser(userId);
+		return ter==null||(ter!=null&&ter.getRecommendCount()>=2);
+	}
+	
+}

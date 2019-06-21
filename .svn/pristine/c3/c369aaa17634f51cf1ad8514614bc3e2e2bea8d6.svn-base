@@ -1,0 +1,80 @@
+package com.ybt.base.service.impl;
+
+import java.util.Date;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.jiufengxinxi.utils.Assert;
+import com.ybt.base.dao.IProxyAreaDao;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.ProxyArea;
+import com.ybt.base.entity.TerritoryArea;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IProxyAreaService;
+import com.ybt.base.service.ITerritoryAreaService;
+
+/** 
+ * 说明： 代理区service
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+@Service
+@Transactional
+public class ProxyAreaService extends GeneralServiceImpl<ProxyArea, IProxyAreaDao> implements IProxyAreaService{
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private ITerritoryAreaService territoryAreaService;
+
+	@Override
+	public boolean setState(String id,boolean state) throws BusinessException {
+		Assert.notNull(id, "id not null！");
+		ProxyArea entity = super.findById(id);
+		if(null != entity){
+			entity.setState(state);
+			return true;
+		}else{
+			throw new BusinessException("找不到您要操作的数据！");
+		}
+	}
+	
+	
+	public boolean saveProxy(ProxyArea proxyArea,Member member){
+		try{
+			if(proxyArea.getId()==null){
+				proxyArea=save(proxyArea);
+				TerritoryArea territoryArea=new TerritoryArea();
+				territoryArea.setAddTime(new Date());
+				territoryArea.setAddUserId(member.getAddUserId());
+				territoryArea.setAreaLevel(1);
+				territoryArea.setAreaName("初级");
+				territoryArea.setSillAmount(20000);
+				territoryArea.setState(true);
+				territoryArea.setDeleteStatus(false);
+				territoryArea.setLogoIcon("glyphicon glyphicon-bishop");
+				territoryAreaService.save(territoryArea);
+			}
+			if(member.getId()==null){
+				member=memberService.save(member);
+			}
+			proxyArea.setManagerId(member.getId());
+			member.setProxyArea(proxyArea.getId());
+			save(proxyArea);
+			memberService.save(member);
+		}catch (Exception e) {
+			e.printStackTrace();
+			return false;
+		}
+		return true;
+	}
+	
+}
+

@@ -1,0 +1,210 @@
+package com.ybt.base.entity;
+
+import java.util.Date;
+
+import javax.persistence.Basic;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.Lob;
+import javax.persistence.Table;
+
+
+/**
+ * 审核表
+ * @author roger
+ *
+ */
+@Entity
+@Table(name="T_YW_APPROVAL")
+public class Approval extends BaseStringEntity {
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 4083395726356248682L;
+	
+	private String approvalName;
+	
+	private String applyUserId;
+	
+	private String approvalCode;
+	
+	private String state;//0提交、1转账、2通过、3不通过
+	
+	private int approvalType;//0注册审核、1提现审核、2充值审核、3抢单申请
+	
+	private String remark;
+	
+	private double approvalMoney;
+	
+	private double approvalIntegral;
+	
+	@Lob
+	@Basic(fetch = FetchType.LAZY)
+    @Column(name="voucherUrl", columnDefinition="BLOB", nullable=true) 
+	private String voucherUrl;
+	
+	private Date payTime;//打款时间
+	
+	private Date approvalTime;//审核时间
+	
+	private Date payOutTime;//打款超时时间
+
+	private String smallTitle;
+	
+	private String account;//收款账号
+	
+	private Long proxyArea;//
+	
+	private boolean reApply=false;//是否已重新申请
+	
+	private Long territoryAreaId;//团购区
+	
+	public String getApprovalName() {
+		return approvalName;
+	}
+
+	public void setApprovalName(String approvalName) {
+		this.approvalName = approvalName;
+	}
+
+	public String getApplyUserId() {
+		return applyUserId;
+	}
+
+	public void setApplyUserId(String applyUserId) {
+		this.applyUserId = applyUserId;
+	}
+
+	public String getApprovalCode() {
+		return approvalCode;
+	}
+
+	public void setApprovalCode(String approvalCode) {
+		this.approvalCode = approvalCode;
+	}
+
+	public String getState() {
+		return state;
+	}
+
+	public void setState(String state) {
+		this.state = state;
+	}
+
+	public int getApprovalType() {
+		return approvalType;
+	}
+
+	public void setApprovalType(int approvalType) {
+		this.approvalType = approvalType;
+	}
+
+	public String getRemark() {
+		return remark;
+	}
+
+	public void setRemark(String remark) {
+		this.remark = remark;
+	}
+
+	public double getApprovalMoney() {
+		return approvalMoney;
+	}
+
+	public void setApprovalMoney(double approvalMoney) {
+		this.approvalMoney = approvalMoney;
+	}
+
+	public Date getApprovalTime() {
+		return approvalTime;
+	}
+
+	public void setApprovalTime(Date approvalTime) {
+		this.approvalTime = approvalTime;
+	}
+
+	public Date getPayTime() {
+		return payTime;
+	}
+
+	public void setPayTime(Date payTime) {
+		this.payTime = payTime;
+	}
+
+	public Date getPayOutTime() {
+		return payOutTime;
+	}
+
+	public void setPayOutTime(Date payOutTime) {
+		this.payOutTime = payOutTime;
+	}
+
+	public double getApprovalIntegral() {
+		return approvalIntegral;
+	}
+
+	public void setApprovalIntegral(double approvalIntegral) {
+		this.approvalIntegral = approvalIntegral;
+	}
+
+	public String getVoucherUrl() {
+		return voucherUrl;
+	}
+
+	public void setVoucherUrl(String voucherUrl) {
+		this.voucherUrl = voucherUrl;
+	}
+
+	public String getSmallTitle() {
+		return smallTitle;
+	}
+
+	public void setSmallTitle(String smallTitle) {
+		this.smallTitle = smallTitle;
+	}
+
+	public String getAccount() {
+		return account;
+	}
+
+	public void setAccount(String account) {
+		this.account = account;
+	}
+
+	public boolean isReApply() {
+		return reApply;
+	}
+
+	public void setReApply(boolean reApply) {
+		this.reApply = reApply;
+	}
+	
+	
+	public Long getProxyArea() {
+		return proxyArea;
+	}
+
+	public void setProxyArea(Long proxyArea) {
+		this.proxyArea = proxyArea;
+	}
+
+	public Long getTerritoryAreaId() {
+		return territoryAreaId;
+	}
+
+	public void setTerritoryAreaId(Long territoryAreaId) {
+		this.territoryAreaId = territoryAreaId;
+	}
+
+	public String getTypeMc(){//0注册审核、1提现审核、2充值审核、3抢单申请
+		switch(this.approvalType){
+			case 0: return "注册审核";
+			case 1: return "提现审核";
+			case 2: return "充值审核";
+			case 3: return "抢单";
+		}
+		return "";
+	}
+}

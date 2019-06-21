@@ -1,0 +1,290 @@
+package com.ybt.web.controller.portal;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.annotation.Resource;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.entity.JsonResult;
+import com.jiufengxinxi.core.enums.EAclLevel;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.utils.Const;
+import com.jiufengxinxi.utils.MD5;
+import com.jiufengxinxi.utils.WebAppUtils;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.UrlAuthority;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.service.IUrlAuthorityService;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.AppUtil;
+import com.ybt.web.util.Constants;
+import com.ybt.web.util.RandomCode;
+import com.ybt.web.util.UserUtil;
+
+@Controller
+@RequestMapping(value="/")
+public class LoginController extends SimpleController {
+
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IApprovalService approvalService;
+	
+	@Resource
+	private ITerritoryService territoryService;
+	
+	@Resource
+	private IMessageService messageService;
+	
+	@Resource
+	private IUrlAuthorityService urlAuthorityService;
+	
+	@RequestMapping(value="login")
+	public String login(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,String redirectUrl,String message,String messageType){
+		String uuid=WebAppUtils.getCookieByName(request, Constants.LOGINED_USER_COOCKIE);
+		if(uuid!=null){
+			Member member=memberService.findUniqueByProperty("seqCode", uuid);
+			if(member!=null){
+				loginLine(request,response,member);
+				redirectAttributes.addFlashAttribute("message", "登录成功");
+				redirectAttributes.addFlashAttribute("messageType", 0);
+				
+				if(StringUtils.isNotEmpty(redirectUrl)){
+					return Constants.REDIRECT+redirectUrl;
+				}
+				
+				if(member.isAdmin()){
+					return Constants.REDIRECT+"/manager/index.htm";
+				}
+				SystemParameters.unreadMSGMap.put(member.getTel(), messageService.unreadCount(member.getTel()));
+				return Constants.REDIRECT+"/index.htm";
+			}
+		}
+		request.setAttribute("message", message);
+		request.setAttribute("messageType", messageType);
+		return "login";
+	}
+	
+	@RequestMapping(value="loging")
+	public String loging(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,String tel,String password,String vcode,String redirectUrl){
+		Object svcode=request.getSession().getAttribute(Const.SESSION_SECURITY_CODE);
+		if(svcode==null||!svcode.toString().toLowerCase().equals(vcode.toLowerCase())){
+			redirectAttributes.addFlashAttribute("message", "验证码错误");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+		    redirectAttributes.addFlashAttribute("tel", tel);
+		    return Constants.REDIRECT+"/login.htm";
+		}
+		
+		Map<String,Object> param=new HashMap<String,Object>();
+		param.put("tel", tel);
+		param.put("lgpassword", MD5.md5(password));
+		
+		Member member=memberService.findUniqueByProperty(param);
+		
+		if(member==null){
+			redirectAttributes.addFlashAttribute("message", "用户名或密码错误");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+		    redirectAttributes.addFlashAttribute("tel", tel);
+		    return Constants.REDIRECT+"/login.htm";
+		}
+		
+		if(member.getProxyArea()!=null&&!member.getProxyAreaEntity().getState()){
+			redirectAttributes.addFlashAttribute("message", "您所在的代理区暂时被停止服务，暂时无法登录");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			redirectAttributes.addFlashAttribute("tel", tel);
+			return Constants.REDIRECT+"/login.htm";
+		}
+		
+		loginLine(request,response,member);
+		redirectAttributes.addFlashAttribute("message", "登录成功");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		
+		SystemParameters.unreadMSGMap.put(tel, messageService.unreadCount(tel));
+		if(StringUtils.isNotEmpty(redirectUrl)){
+			return Constants.REDIRECT+redirectUrl;
+		}
+		
+		if(member.isAdmin()){
+			return Constants.REDIRECT+"/manager/index.htm";
+		}
+		
+		if(member.getState()==0){
+			return Constants.REDIRECT+"/personal/index.htm";
+		}
+		
+		return Constants.REDIRECT+"/index.htm";
+	}
+	
+	private void loginLine(HttpServletRequest request,HttpServletResponse response,Member member){
+		String uuid=UUID.randomUUID().toString();
+		
+		member.setLastloginTime(new Date());
+		
+		member.setSeqCode(uuid);
+		
+		member.setLoginTimes(member.getLoginTimes()+1);
+		
+		WebAppUtils.addCookie(response, Constants.LOGINED_USER_COOCKIE, uuid, 60*60*24*30);
+		
+		request.getSession(true).setAttribute(Constants.LOGINED_USER, memberService.save(member));
+		
+		
+		/**
+		 * 如果是管理员则读取菜单
+		 */
+		if(member.isAdmin()){
+			List<UrlAuthority> auths=null;
+			if(member.getProxyArea()!=null){
+				String urls=member.getProxyAreaEntity().getAuths();
+				List<Long> ids=new ArrayList<Long>();
+				for(String urlId:urls.split(",")){
+					ids.add(Long.parseLong(urlId));
+				}
+				auths=urlAuthorityService.findByFilters(ListPropertyFilter.getInstance().addFilter("id", ids, MatchType.IN));
+			}else{
+				auths=urlAuthorityService.findAll();
+			}
+			Map<String,Boolean> menus=new HashMap<String,Boolean>();
+			for(UrlAuthority url:auths){
+				menus.put(url.getUrl(), true);
+			}
+			request.getSession().setAttribute(Constants.MENUS, menus);
+		}
+	}
+	
+	@RequestMapping(value="register")
+	public ModelAndView register(HttpServletRequest request,RedirectAttributes redirectAttributes,String recommendertel){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("register");
+
+		redirectAttributes.addFlashAttribute("messageType", 1);
+		if(StringUtils.isEmpty(recommendertel)){
+			mv.setViewName(Constants.REDIRECT+"/login.htm");
+			redirectAttributes.addFlashAttribute("message", "没有推荐人，无法注册用户");
+			return mv;
+		}
+		
+		Member member=memberService.getMemberByTel(recommendertel);
+		
+		if(member==null){
+			mv.setViewName(Constants.REDIRECT+"/login.htm");
+			redirectAttributes.addFlashAttribute("message", "不存在的推荐人，无法注册用户");
+			return mv;
+		}
+		
+		if(member.getState()==0){
+			mv.setViewName(Constants.REDIRECT+"/login.htm");
+			redirectAttributes.addFlashAttribute("message", "推荐人还不是正式用户，无法注册用户");
+			return mv;
+		}
+		
+		/*Territory ter=territoryService.getTerritoryByUser(member.getId());
+		if(ter!=null&&ter.getRecommendCount()>=2){
+			mv.setViewName(Constants.REDIRECT+"/login.htm");
+			redirectAttributes.addFlashAttribute("message", "推荐人在当前团购中已经推荐两个人，推荐新用户");
+			return mv;
+		}*/
+		
+		mv.addObject("recommendertel", recommendertel);
+		return mv;
+	}
+	
+	@RequestMapping(value="registing")
+	public String registing(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Member member,String vcode,String repaypassword,String relgpassword){
+		return UserUtil.createUser(request, response, redirectAttributes, member, vcode, repaypassword, relgpassword, false, "/register.htm", "/login.htm");
+	}
+	
+	@RequestMapping(value="/code",description="登录验证码",aclLevel=EAclLevel.WHITE)
+	public void code(HttpServletRequest request, HttpServletResponse response){
+		ByteArrayOutputStream output = new ByteArrayOutputStream();
+		RandomCode rcode=new RandomCode(4);
+		try {
+			rcode.write(70, 25, output);
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		String code = rcode.getCode();
+		request.getSession().setAttribute(Const.SESSION_SECURITY_CODE, code);
+		try {
+			ServletOutputStream out = response.getOutputStream();
+			output.writeTo(out);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@RequestMapping(value="hasMUT",description="检验手机号是否唯一",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object hasT(String id,String tel){
+		try{
+			if(memberService.isUnique(null, "tel", tel)){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+	
+	@RequestMapping(value="hasUST",description="检验推荐人手机号是否存在",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object hasUSET(String recommendertel){
+		try{
+			Map<String,Object> paramMap = new HashMap<String,Object>();
+			paramMap.put("tel", recommendertel);
+			paramMap.put("deleteStatus", false);
+			if(memberService.findUniqueByProperty(paramMap)!=null){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+	@RequestMapping(value="hasIdc",description="检验推荐人手机号是否存在",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object hasIdc(String idNumber){
+		try{
+			if(memberService.isUnique(null, "idNumber", idNumber)){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+	@RequestMapping(value="outlogin")
+	public String outlogin(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes){
+		request.getSession(true).removeAttribute(Constants.LOGINED_USER);
+		WebAppUtils.removeCookie(response, Constants.LOGINED_USER_COOCKIE);
+		redirectAttributes.addFlashAttribute("message", "已退出登录");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+"/login.htm";
+	}
+	
+}

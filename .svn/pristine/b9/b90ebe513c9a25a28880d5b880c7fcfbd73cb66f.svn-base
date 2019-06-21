@@ -1,0 +1,19 @@
+package com.ybt.base.dao.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.dao.impl.EntityDaoSupport;
+import com.ybt.base.dao.IFundFlowDao;
+import com.ybt.base.entity.FundFlow;
+
+@Service
+@Transactional
+public class FundFlowDao extends EntityDaoSupport<FundFlow, Long> implements IFundFlowDao{
+
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 7676841445072559471L;
+
+}

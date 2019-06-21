@@ -1,0 +1,222 @@
+package com.ybt.web.controller.portal;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.utils.MD5;
+import com.jiufengxinxi.utils.string.StringUtils;
+import com.ybt.base.entity.FundFlow;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.Constants;
+
+@Controller
+@RequestMapping(value="/finance/")
+public class FinanceController extends SimpleController {
+	
+	@Resource
+	private IApprovalService approvalService;
+	
+	@Resource
+	private IFundFlowService fundFlowService;
+	
+	@RequestMapping(value="index",description="财务首页")
+	public ModelAndView index(HttpServletRequest request,HttpServletResponse response){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/index");
+		//总提现
+		double sumcashMoney = fundFlowService.sumCashMoney(member.getId());
+		//现金钱包
+		double balance = member.getBalance();
+		//奖金
+		double bonus = member.getBonus();
+		//总资产
+		double totalAssets = balance + bonus;
+		mv.addObject("sumcashMoney", sumcashMoney);
+		mv.addObject("balance", balance);
+		mv.addObject("bonus", bonus);
+		mv.addObject("totalAssets", totalAssets);
+		return mv;	
+
+	}
+	
+	@RequestMapping(value="detail",description="财务明细")
+	public ModelAndView detail(HttpServletRequest request,HttpServletResponse response,Page<FundFlow> page,Date startDate,Date endDate,FundTypeEnum types){
+		//Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/detail");
+		return mv;
+	}
+	
+	@RequestMapping(value="pageFromDetail",description="财务明细")
+	public ModelAndView pageFromDetail(HttpServletRequest request,HttpServletResponse response,Page<FundFlow> page,Date startDate,Date endDate,FundTypeEnum types){
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/loadForDetail");
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		filters.addFilter("deleteStatus", false, MatchType.EQ);
+		filters.addFilter("userId", member.getId(),MatchType.EQ);
+		if(startDate!=null){
+			filters.addFilter("addTime", startDate,MatchType.GE);
+			mv.addObject("startDate", startDate);
+		}
+		if(endDate!=null){
+			filters.addFilter("addTime", endDate,MatchType.LE);
+			mv.addObject("endDate", endDate);
+		}
+		
+		if(types!=null){
+			filters.addFilter("types", types,MatchType.EQ);
+			mv.addObject("types", types.name());
+		}
+		page.setOrderBy("addTime");
+		page.setOrder(Page.DESC);
+		page.setPageSize(3);
+		page=fundFlowService.findPagesByFilters(page, filters);
+		filters.setOrderBy("addTime");
+		filters.setOrder("desc");
+		Map<String,String> map = new HashMap<String,String>();
+		for(FundTypeEnum type : FundTypeEnum.values()){
+			map.put(type.name(), type.desc());
+		}
+		mv.addObject("typeMap", map);
+		mv.addObject("page", page);
+		return mv;
+	}
+	
+	@RequestMapping(value="cashApply",description="提现申请")
+	public ModelAndView cashApply(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/cashApply"); 
+		Member user = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		double applyingBonus = approvalService.sumApplyingbonusByUserId(user.getId());
+		double maxApplyBonus = user.getBonus() - applyingBonus;
+		mv.addObject("maxApplyBonus", (maxApplyBonus>0)?maxApplyBonus:0);
+		return mv;
+	}
+	
+	@RequestMapping(value="saveCashApply",description="保存提现申请")
+	public String saveCashApply(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String password,String applyBonus){
+		String url = Constants.REDIRECT+"/finance/cashApply.htm";		
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		//校验支付密码
+		if(StringUtils.isEmpty(password)||!member.getPaypassword().equals(MD5.md5(password))){
+			redirectAttributes.addFlashAttribute("message", "密码错误");
+			redirectAttributes.addFlashAttribute("messageType", 1);
+			return url;
+		}
+		try {
+			double bonus = Double.parseDouble(applyBonus);
+			if(bonus<=0){
+				redirectAttributes.addFlashAttribute("message", "请输入有效数值");
+				redirectAttributes.addFlashAttribute("messageType", 1);
+				return url;
+			}
+			
+			if(member.getBonus()<=0 || bonus>member.getBonus()){
+				redirectAttributes.addFlashAttribute("message", "没有足够的提现积分");
+
+				redirectAttributes.addFlashAttribute("messageType", 1);
+				return url;
+			}		
+		
+			boolean result = approvalService.applyApproval(member, 1,null, bonus,null);
+			if(!result){
+				throw new BusinessException("保存提现记录失败");
+			}
+		} catch (Exception e) {
+			redirectAttributes.addFlashAttribute("message", "申请提现失败");
+
+			redirectAttributes.addFlashAttribute("messageType", 2);
+			return url;
+		}					
+		
+		redirectAttributes.addFlashAttribute("message","申请提现成功，待审核中");
+
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+"/finance/cashApply.htm";
+	}
+	
+	
+	
+	@RequestMapping(value="recharge",description="充值")
+	public ModelAndView recharge(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("finance/recharge"); 
+		return mv;
+	}
+	
+	@RequestMapping(value="saveRecharge",description="充值")
+	public String saveRecharge(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String password,String applyBalance){		
+		String url = Constants.REDIRECT+"/finance/recharge.htm";		
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		/*if(StringUtils.isEmpty(password)||!member.getLgpassword().equals(MD5.md5(password))){
+			redirectAttributes.addFlashAttribute("message", "密码错误");
+			return url;
+		}*/
+				
+		try {
+			double balance = Double.parseDouble(applyBalance);
+			if(balance<=0){
+				redirectAttributes.addFlashAttribute("message", "请输入有效数值");
+				redirectAttributes.addFlashAttribute("messageType", 1);
+				return url;
+			}
+			boolean result = approvalService.applyApproval(member, 2,null, balance,null);
+			if(!result){
+				throw new BusinessException("保存充值记录失败");
+			}
+		} catch (Exception e) {
+			redirectAttributes.addFlashAttribute("message", "申请充值失败");
+			redirectAttributes.addFlashAttribute("messageType", 2);
+			return url;
+		}		
+				
+		redirectAttributes.addFlashAttribute("message","申请充值成功，待审核中");
+		redirectAttributes.addFlashAttribute("messageType", 0);
+		return Constants.REDIRECT+"/finance/recharge.htm";
+	}
+	
+	@RequestMapping(value="addAccount",description="添加收款账号")
+	public String addAccount(){
+		return "finance/addAccount";
+	}
+	
+	@RequestMapping(value="saveAccount",description="保存收款账号")
+	public String saveAccount(HttpServletRequest request ,RedirectAttributes redirectAttributes, String account){
+		if(StringUtils.isEmpty(account)){
+			redirectAttributes.addFlashAttribute("message", "收款账号不能为空");
+			redirectAttributes.addFlashAttribute("messageType", "0");
+			return  Constants.REDIRECT+"/finance/addAccount.htm";
+		}
+		try{
+			Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		}catch(Exception e){
+			redirectAttributes.addFlashAttribute("message", "添加收款账号失败");
+			redirectAttributes.addFlashAttribute("messageType", "0");
+			return  Constants.REDIRECT+"/finance/addAccount.htm";
+		}
+		redirectAttributes.addFlashAttribute("message", "添加收款账号成功");
+		redirectAttributes.addFlashAttribute("messageType", "0");
+		return  Constants.REDIRECT+"/finance/cashApply.htm";
+	}
+	
+}

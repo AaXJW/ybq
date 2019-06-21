@@ -1,0 +1,121 @@
+package com.ybt.web.filter;
+
+import java.io.IOException;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import com.jiufengxinxi.core.commons.ServicesFactory;
+import com.jiufengxinxi.utils.WebAppUtils;
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.util.Constants;
+import com.ybt.web.util.UserUtil;
+
+public class AuthFilter implements Filter {
+	
+	private FilterConfig filterConfig;
+	
+	private Map configProperties;
+	
+	private boolean initialized;
+	
+	private String loginUrl;
+	
+	private String registUrl;
+
+	@Override
+	public void destroy() {
+		
+	}
+
+	@Override
+	public void doFilter(ServletRequest srequest, ServletResponse sresponse,
+			FilterChain filterChain) throws IOException, ServletException {
+		HttpServletRequest request=(HttpServletRequest)srequest;
+		HttpServletResponse response=(HttpServletResponse)sresponse;
+		String uri=request.getRequestURI();
+		SystemParameters.BASE_URL=WebAppUtils.getBaseAccessUrl(request);
+		SystemParameters.BaseRealPath=WebAppUtils.getBaseRealPath(request);
+		if(uri.equals(loginUrl)||uri.equals(registUrl)||configProperties.containsValue(uri)||uri.indexOf("/has")>=0){
+			filterChain.doFilter(request, response);
+			return;
+		}
+		
+		if(request.getSession().getAttribute(Constants.LOGINED_USER)==null){
+			response.sendRedirect(loginUrl);
+			return;
+		}
+		
+		Member member=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		
+		if(member!=null){
+			if(UserUtil.userIsChange(member)){
+				IMemberService memberService=ServicesFactory.getBean(IMemberService.class);
+				request.getSession().setAttribute(Constants.LOGINED_USER, memberService.findById(member.getId()));
+			}
+			
+			if(member.getState()==0||member.isAdmin()){
+				if((uri.startsWith("/finance/")&&
+						!uri.equals("/finance/applyDetail.htm")&&
+						!uri.equals("/finance/payApproval.htm")&&
+						!uri.equals("/finance/saveVoucherUrl.htm"))||
+						uri.startsWith("/team/")||uri.startsWith("/index.htm")){
+					response.sendRedirect("/noauth.htm");
+					return;
+				}
+			}
+			
+			if(uri.startsWith("/manager/")){
+				if(!member.isAdmin()){
+					response.sendRedirect(loginUrl);
+					return;
+				}else if(member.isAdmin()&&member.getProxyArea()!=null){
+					Map<String,Boolean> menus=(Map<String, Boolean>) request.getSession().getAttribute(Constants.MENUS);
+					if(!menus.getOrDefault(uri, false)){
+						response.sendRedirect("/noauth.htm");
+						return;
+					}
+				}
+			}
+			
+			request.setAttribute("UNREAD_MSE", SystemParameters.unreadMSGMap.get(member.getTel()));
+		}
+		
+		filterChain.doFilter(request, response);
+	}
+
+	@Override
+	public void init(FilterConfig filterConfig) throws ServletException {
+		this.filterConfig=filterConfig;
+		configProperties = getConfigProperties(filterConfig);
+		initialized=true;
+		loginUrl=(String) configProperties.get("LOGIN_URL");
+		registUrl=(String) configProperties.get("REGIST_URL");
+	}
+
+	protected Map getConfigProperties(FilterConfig filterConfig)
+    {
+        Map initParams = new HashMap();
+        String key;
+        String value;
+        for(Enumeration initParameterNames = filterConfig.getInitParameterNames(); initParameterNames.hasMoreElements(); initParams.put(key, value))
+        {
+            key = (String)initParameterNames.nextElement();
+            value = filterConfig.getInitParameter(key).trim();
+        }
+
+        return initParams;
+    }
+	
+}

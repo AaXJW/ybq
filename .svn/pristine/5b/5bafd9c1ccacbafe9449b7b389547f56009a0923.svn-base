@@ -1,0 +1,72 @@
+package com.ybt.base.service.impl;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.ybt.base.dao.ITerritoryAreaDao;
+import com.ybt.base.entity.TerritoryArea;
+import com.ybt.base.service.ITerritoryAreaService;
+
+@Service
+@Transactional
+public class TerritoryAreaService extends GeneralServiceImpl<TerritoryArea, ITerritoryAreaDao> implements ITerritoryAreaService {
+
+	public void setDefault(long id) {
+		String hql1="update T_YW_TERRITORY_AREA t set t.defaults = 0";
+		executeNativeUpdate(hql1);
+		String hql2="update T_YW_TERRITORY_AREA t set t.defaults = 1 where t.id=?";
+		executeNativeUpdate(hql2, new Object[] {id});
+	}
+	
+	
+	public TerritoryArea getDefault(Long proxyId) {
+		TerritoryArea territoryArea=null;
+		Page<TerritoryArea> page=new Page<TerritoryArea>();
+		page.setPageSize(1);
+		page.setOrderBy("id");
+		ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+		lFilter.addFilter("defaults",true ,MatchType.EQ);
+		lFilter.addFilter("state", true, MatchType.EQ);
+		if(proxyId==null) {
+			lFilter.addFilter("proxyArea", MatchType.ISNULL);
+		}else {
+			lFilter.addFilter("proxyArea",proxyId, MatchType.EQ);
+		}
+		page=findPagesByFilters(page, lFilter);
+		if(page.getRowCount()>0) {
+			territoryArea=page.getResult().get(0);
+		}
+		return territoryArea;
+	}
+	
+	public TerritoryArea getNextLevelArea(int level,Long proxyId) {
+		if(level==0) {
+			return null;
+		}
+		TerritoryArea territoryArea=null;
+		Page<TerritoryArea> page=new Page<TerritoryArea>();
+		page.setPageSize(1);
+		page.setOrderBy("areaLevel");
+		page.setOrder("asc");
+		ListPropertyFilter lFilter=ListPropertyFilter.getInstance();
+		lFilter.addFilter("areaLevel",level ,MatchType.GT);
+		lFilter.addFilter("state", true, MatchType.EQ);
+		if(proxyId==null) {
+			lFilter.addFilter("proxyArea", MatchType.ISNULL);
+		}else {
+			lFilter.addFilter("proxyArea",proxyId, MatchType.EQ);
+		}
+		page=findPagesByFilters(page, lFilter);
+		if(page.getRowCount()>0) {
+			territoryArea=page.getResult().get(0);
+		}else {
+			territoryArea=getNextLevelArea(level-1,proxyId);
+		}
+		return territoryArea;
+		
+	}
+}

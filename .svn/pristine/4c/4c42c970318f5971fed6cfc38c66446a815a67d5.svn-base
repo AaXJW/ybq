@@ -1,0 +1,118 @@
+package com.ybt.base.job;
+
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
+import org.quartz.DisallowConcurrentExecution;
+import org.quartz.Job;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.PersistJobDataAfterExecution;
+
+import com.ibm.icu.text.SimpleDateFormat;
+import com.jiufengxinxi.core.commons.ServicesFactory;
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.ProxyArea;
+import com.ybt.base.entity.enums.FundTypeEnum;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IFundFlowService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.base.service.IProxyAreaService;
+import com.ybt.base.utill.SystemParameters;
+
+@PersistJobDataAfterExecution//执行后保存相关参数
+@DisallowConcurrentExecution//不允许并发执行（单线程）
+public class TimeOutJob implements Job {
+	
+	protected Logger logger = LogManager.getLogger(this.getClass());
+	private IApprovalService approvalService = ServicesFactory.getBean(IApprovalService.class);
+	private IMessageService messageService=ServicesFactory.getBean(IMessageService.class);
+	private IMemberService memberService=ServicesFactory.getBean(IMemberService.class);
+	private IFundFlowService fundFlowService=ServicesFactory.getBean(IFundFlowService.class);
+	private IProxyAreaService proxyAreaService=ServicesFactory.getBean(IProxyAreaService.class);
+	
+	@Override
+	public void execute(JobExecutionContext arg0) throws JobExecutionException {
+		
+		outTime();
+		
+		statistics();
+		
+	}
+	
+	
+	private void outTime(){
+		if(SystemParameters.SYSTEM_PARAMETER.getPayTimeOutValue()==0){
+			return;
+		}
+		
+		/*ListPropertyFilter filter=ListPropertyFilter.getInstance();//payTimeOutValue
+		filter.addFilter("state", "0", MatchType.EQ);
+		filter.addFilter("state", "0", MatchType.EQ);*/
+		
+		List ids=approvalService.getOutTimeApply();
+		
+		if(ids==null||ids.size()==0){
+			return;
+		}
+		
+		List<Approval> approvals=approvalService.findByFilters(ListPropertyFilter.getInstance().addFilter("id", ids, MatchType.IN));
+		
+		SimpleDateFormat sdf=new SimpleDateFormat("yy年MM月dd日 HH点mm分");
+		Date date=new Date();
+		for(Approval ap:approvals){
+			ap.setState("3");
+			approvalService.save(ap);
+			Member user=memberService.findById(ap.getApplyUserId());
+			messageService.addSelfMessage(user.getTel(), "system",  "您的"+ap.getTypeMc()+"申请被取消", "您的"+ap.getTypeMc()+"申请于"+sdf.format(date)+"因未及时打款被取消,您还可以重新发起申请", "/finance/applyDetail.htm?id="+ap.getId(),ap.getProxyArea());
+		}
+	}
+	
+	private void statistics(){
+		/**
+		 * 统计当月数据------开始
+		 */
+		Calendar cale = Calendar.getInstance();   
+        cale.set(Calendar.DAY_OF_MONTH,0);
+        Date monthFirst=cale.getTime();
+        
+        List<ProxyArea> list=proxyAreaService.findAll();
+        list.add(null);
+        for(ProxyArea proxyArea:list){
+        	//Object[] param=new Object[2];
+        	Long proxyId=proxyArea==null?null:proxyArea.getId();
+            SystemParameters.StatisticsData.put("m_tgjl"+proxyId, fundFlowService.sumIntegralByStartDate(monthFirst, FundTypeEnum.OUT_AWARD,proxyId));//团购奖励
+            SystemParameters.StatisticsData.put("m_tjjl"+proxyId, fundFlowService.sumIntegralByStartDate(monthFirst, FundTypeEnum.RECOMMEND_AWARD,proxyId));//推荐奖励
+            SystemParameters.StatisticsData.put("m_qdjl"+proxyId, fundFlowService.sumIntegralByStartDate(monthFirst, FundTypeEnum.COMPETE,proxyId));//抢单奖励
+            SystemParameters.StatisticsData.put("m_txjf"+proxyId, fundFlowService.sumIntegralByStartDate(monthFirst, FundTypeEnum.WITHDRAWALS,proxyId));//提现积分
+            SystemParameters.StatisticsData.put("m_rfje"+proxyId, fundFlowService.sumIntegralByStartDate(monthFirst, FundTypeEnum.REGISTER,proxyId));//注册/复投金额
+            SystemParameters.StatisticsData.put("m_tgcgs"+proxyId, fundFlowService.countIntegralByStartDate(monthFirst, FundTypeEnum.OUT_AWARD,proxyId));//团购成功数
+            SystemParameters.StatisticsData.put("m_zcs"+proxyId, memberService.getCount(" where e.deleteStatus=0 and e.addTime>=?1 and e.state=1 "+(proxyId!=null?" and e.proxyArea=?2":" and e.proxyArea is null"), proxyId!=null?new Object[]{monthFirst,proxyId}:new Object[]{monthFirst}));//注册数
+            SystemParameters.StatisticsData.put("m_fts"+proxyId, memberService.getCount(" where e.deleteStatus=0 and e.modifyTime>=?1 and e.lastTerritoryTime=?2 and e.territoryState!=2"+(proxyId!=null?" and e.proxyArea=?3":" and e.proxyArea is null"), proxyId!=null?new Object[]{monthFirst,monthFirst,proxyId}:new Object[]{monthFirst,monthFirst}));//复投数
+            /**
+    		 * 
+    		 */
+            
+            SystemParameters.StatisticsData.put("a_tgjl"+proxyId, fundFlowService.sumIntegral( FundTypeEnum.OUT_AWARD,proxyId));//团购奖励
+            SystemParameters.StatisticsData.put("a_tjjl"+proxyId, fundFlowService.sumIntegral( FundTypeEnum.RECOMMEND_AWARD,proxyId));//推荐奖励
+            SystemParameters.StatisticsData.put("a_qdjl"+proxyId, fundFlowService.sumIntegral( FundTypeEnum.COMPETE,proxyId));//抢单奖励
+            SystemParameters.StatisticsData.put("a_txjf"+proxyId, fundFlowService.sumIntegral( FundTypeEnum.WITHDRAWALS,proxyId));//提现积分
+            SystemParameters.StatisticsData.put("a_rfje"+proxyId, fundFlowService.sumIntegral( FundTypeEnum.REGISTER,proxyId));//注册/复投金额
+            SystemParameters.StatisticsData.put("a_yhs"+proxyId, memberService.getCount(" where e.deleteStatus=0 and e.state=1 and e.admin=false"+(proxyId!=null?" and e.proxyArea=?1":" and e.proxyArea is null"), proxyId!=null?new Object[]{proxyId}:new Object[]{}));//用户数
+            SystemParameters.StatisticsData.put("a_qdcgs"+proxyId, fundFlowService.getCount(" where e.types = ?1"+(proxyId!=null?" and e.proxyArea=?2":" and e.proxyArea is null"), proxyId!=null?new Object[]{FundTypeEnum.COMPETE,proxyId}:new Object[]{FundTypeEnum.COMPETE}));//抢单成功数
+            SystemParameters.StatisticsData.put("a_tgcgs"+proxyId, fundFlowService.getCount(" where e.types = ?1"+(proxyId!=null?" and e.proxyArea=?2":" and e.proxyArea is null"), proxyId!=null?new Object[]{FundTypeEnum.OUT_AWARD,proxyId}:new Object[]{FundTypeEnum.OUT_AWARD}));//团购成功数
+    		/**
+    		 * 
+    		 */
+        }
+        
+	}
+
+}

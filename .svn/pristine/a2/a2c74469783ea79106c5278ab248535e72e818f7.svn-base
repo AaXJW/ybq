@@ -1,0 +1,262 @@
+package com.ybt.web.controller;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.utils.MD5;
+import com.ybt.base.entity.Approval;
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.IMessageService;
+import com.ybt.web.util.Constants;
+import com.ybt.web.util.UserUtil;
+import com.ybt.web.util.WebAppUtils;
+
+@Controller
+@RequestMapping(value="/personal/")
+public class PersonalController {
+	
+	@Resource
+	private IMemberService memberService;
+	
+	@Resource
+	private IApprovalService approvalService;
+	
+	@Resource
+	private IMessageService messageService;
+	
+	private static final String TOKEN_CODE ="TOKEN_CODE";
+	
+	@RequestMapping(value="index")
+	public ModelAndView index(HttpServletRequest request){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("personal/index");
+		Member user=(Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		if(user.getState()==0){
+			Map<String,Object> param=new HashMap<String,Object>();
+			param.put("applyUserId", user.getId());
+			param.put("approvalType", 0);
+			param.put("reApply", false);
+			Approval ap=approvalService.findUniqueByProperty(param);
+			mv.addObject("apid", ap!=null?ap.getId():"");
+		}
+		//mv.addObject("selfMessageCount",messageService.getCount("where e.reciver=?1 and e.state='0' and mtype='0'", new Object[]{user.getTel()}));
+		return mv;
+	}
+	
+	@RequestMapping(value="profile",description="个人资料")
+	public ModelAndView profile(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("personal/profile");
+		return mv;
+	}
+	
+	@RequestMapping(value="update",description="修改资料")
+	public ModelAndView update(HttpServletRequest request,HttpServletResponse response){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("personal/update");
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		mv.addObject("tel", member.getTel());
+		mv.addObject("idNumber", member.getIdNumber());
+		mv.addObject("name", member.getName());
+		mv.addObject("answer", member.getAnswer());
+		mv.addObject("recommendertel", member.getRecommendertel());
+		mv.addObject("question", member.getQuestion());
+		mv.addObject("levels", member.getLevels());
+		mv.addObject("account", member.getAccount());
+		mv.addObject("email", member.getEmail());
+		mv.addObject("weixin", member.getWeixin());
+		mv.addObject("bankBranch", member.getBankBranch());	
+		return mv;
+	}
+	
+	@RequestMapping(value="saveProfile",description="保存修改资料")
+	public String saveProfile(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,
+			Member param){		
+		return UserUtil.updateUser(request, response, redirectAttributes, param, "/personal/update.htm", "/login.htm");
+	}
+	
+	@RequestMapping(value="question",description="密保问题")
+	public ModelAndView question(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String tel){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("personal/question");
+		mv.addObject("tel", tel);
+		Member member = null;
+		if(StringUtils.isNotEmpty(tel)){
+			Map<String,Object> param=new HashMap<String,Object>();
+			param.put("tel", tel);
+			param.put("deleteStatus", false);
+			member=memberService.findUniqueByProperty(param);
+			if(member!=null){
+				mv.addObject("question", member.getQuestion());
+				//request.getSession().setAttribute("question", member.getQuestion());
+			}else{
+				redirectAttributes.addFlashAttribute("message", "手机号码不存在！");
+				return new ModelAndView(Constants.REDIRECT+"/login.htm");
+			}
+		}
+		return mv;
+	}
+	
+	@RequestMapping(value="initChangePassword",description="修改密码")
+	public String initChangePassword(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String answer,String tel){
+		Member member = null;
+		if(StringUtils.isNotEmpty(tel)){
+			Map<String,Object> param=new HashMap<String,Object>();
+			param.put("tel", tel);
+			param.put("deleteStatus", false);
+			member=memberService.findUniqueByProperty(param);
+			redirectAttributes.addFlashAttribute("tel", tel);
+			redirectAttributes.addAttribute("tel", tel);
+			request.setAttribute("tel", tel);
+			if(member==null){
+				redirectAttributes.addFlashAttribute("message", "手机号码不存在！");
+				return Constants.REDIRECT+"/login.htm";
+			}
+		}else{
+			member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		}	
+		if(StringUtils.isEmpty(answer) || !answer.equals(member.getAnswer())){
+			redirectAttributes.addFlashAttribute("message", "答案错误，请重新填写！");
+			return Constants.REDIRECT+"/personal/question.htm";
+		}
+		//request.getSession().setAttribute("answer", answer);
+		WebAppUtils.addCookie(response, TOKEN_CODE, MD5.md5(answer),30*60);//令牌 半个小时失效
+		
+		if(StringUtils.isNotEmpty(tel)){
+			return "personal/changeLoginPassword";
+		}
+		return "personal/initChangePassword";
+	}
+	
+	@RequestMapping(value="changeLoginPassword",description="修改登录密码")
+	public String changeLoginPassword(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,String tel){
+		String tokenCode = WebAppUtils.getCookieByName(request, TOKEN_CODE);
+		Member member = null;
+		if(StringUtils.isNotEmpty(tel)){
+			Map<String,Object> param=new HashMap<String,Object>();
+			param.put("tel", tel);
+			param.put("deleteStatus", false);
+			member=memberService.findUniqueByProperty(param);
+			if(member==null){
+				redirectAttributes.addFlashAttribute("message", "手机号码不存在！");
+				return Constants.REDIRECT+"/login.htm";
+			}
+			request.setAttribute("tel", tel);
+		}else{
+			member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		}
+		if(StringUtils.isEmpty(tokenCode)&& !MD5.md5(member.getAnswer()).equals(tokenCode)){
+			redirectAttributes.addFlashAttribute("message", "答案错误，请重新填写！");
+			return Constants.REDIRECT+"/personal/question.htm?tel="+tel;
+		}	
+		return "personal/changeLoginPassword";
+	}
+	
+	@RequestMapping(value="changePayPassword",description="修改支付密码")
+	public String changePayPassword(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes){
+		String tokenCode = WebAppUtils.getCookieByName(request, TOKEN_CODE);
+		Member member = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		if(StringUtils.isEmpty(tokenCode)&& !MD5.md5(member.getAnswer()).equals(tokenCode)){
+			redirectAttributes.addFlashAttribute("message", "答案错误，请重新填写！");
+			return Constants.REDIRECT+"/personal/question.htm";
+		}
+		return "personal/changePayPassword";
+	}
+	
+	@RequestMapping(value="saveChangePayPassword",description="保存修改支付密码")
+	public String saveChangePayPassword(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,
+			String oldPassword,String newPassword,String newPasswordC){		
+		return UserUtil.saveChangePayPassword(request, redirectAttributes,oldPassword, 
+				newPassword, newPasswordC, "/personal/changePayPassword.htm");
+	}
+	
+	@RequestMapping(value="saveChangeLgPassword",description="保存修改登录密码")
+	public String saveChangeLgPassword(HttpServletRequest request,HttpServletResponse response,RedirectAttributes redirectAttributes,
+			String oldPassword,String newPassword,String newPasswordC,String tel){	
+		String returnUrl="/personal/changeLoginPassword.htm";
+		if(StringUtils.isNotEmpty(tel)){
+			returnUrl="/login.htm";
+		}
+		return UserUtil.saveChangeLgPassword(request, redirectAttributes,oldPassword, 
+				newPassword, newPasswordC, returnUrl);
+	}
+	
+	/*@RequestMapping(value="judgeAnswer",description="检验密保问题答案",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object judgeAnswer(String id,String answer){
+		Map<String,Object> param = new HashMap<String,Object>();
+		param.put("id", id);
+		param.put("paypassword",answer);
+		try{
+			if(memberService.findUniqueByProperty(param)!=null){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+	
+	@RequestMapping(value="judgePayPW",description="检验原支付密码",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object judgePayPW(String id,String oldPassword){
+		Map<String,Object> param = new HashMap<String,Object>();
+		param.put("id", id);
+		param.put("paypassword", MD5.md5(oldPassword));
+		try{
+			if(memberService.findUniqueByProperty(param)!=null){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	
+	@RequestMapping(value="judgeLgPW",description="检验原登录密码",aclLevel=EAclLevel.WHITE)
+	@ResponseBody
+	public Object judgeLgPW(String id,String oldPassword){
+		Map<String,Object> param = new HashMap<String,Object>();
+		param.put("id", id);
+		param.put("lgpassword", MD5.md5(oldPassword));
+		try{
+			if(memberService.findUniqueByProperty(param)!=null){
+				return AppUtil.returnObject(JsonResult.success());
+			}
+		} catch(Exception e){
+			e.printStackTrace();
+		}
+		return AppUtil.returnObject(JsonResult.fail());
+	}
+	*/
+	@RequestMapping(value="createUser")
+	public String createUser(){
+		return "personal/createUser";
+	} 
+	
+	@RequestMapping(value="saveUser")
+	public String saveUser(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Member member,String vcode,String repaypassword,String relgpassword,String newType){
+		Member cuser = (Member) request.getSession().getAttribute(Constants.LOGINED_USER);
+		member.setRecommendertel(cuser.getTel());
+		String surl="/personal/index.htm";
+		if(newType!=null&&newType.equals("1")){
+			surl="/team/index.htm";
+		}
+		return UserUtil.createUser(request, response, redirectAttributes, member, vcode, repaypassword, relgpassword, false, "/personal/createUser.htm?newType="+newType, surl);
+	}
+	
+	
+}

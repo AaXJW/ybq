@@ -1,0 +1,60 @@
+body{
+			padding-bottom: 50px;
+		}
+	
+		.banner-register{
+    		padding: 20px 40px;
+    		z-index: 90;
+    	}
+    	
+    	.form-group{
+			position: relative;
+			margin: 20px auto;
+		}
+    	
+    	.form-control-feedback{
+			margin-right: 35px;
+		}
+		
+		.vcode-group .form-control-feedback{
+			margin-right: 120px;
+		}
+    	
+    	.help-block{
+			background-color: #fff;
+			padding: 5px 3px 3px 3px;
+    		margin-top: -5px;
+    		position: absolute;
+    		left: 0px;
+    		bottom: -20px;
+    		/**width: 100%;*/
+    		z-index: 0;
+		}
+    	
+    	.submit{
+			position: fixed;
+			bottom: 0px;
+			left: 0px;
+			border-top-right-radius: 0px;
+    		border-top-left-radius: 0px;
+    		padding: 20px 0;
+    		z-index: 9999;
+		}
+		
+		.panel-body{
+			padding: 20px 35px;
+		}
+		
+		.panel-body .alert{
+			margin-bottom: 5px;
+			padding: 5px 10px;
+		}
+		
+		.input-group .bs-placeholder,.input-group .bs-placeholder:HOVER,.input-group .btn-default:active:hover,.input-group .btn-default{
+			background-color: #fff !important;
+			color:#414141 !important;
+		}
+		
+		.dropdown-menu.open{
+			width: 100%;
+		}

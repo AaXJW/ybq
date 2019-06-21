@@ -1,0 +1,103 @@
+package com.ybt.base.entity;
+
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.validation.constraints.Size;
+
+import com.jiufengxinxi.core.entity.BusinessLongIdEntity;
+import com.jiufengxinxi.core.entity.annotations.AnnoEntity;
+import com.jiufengxinxi.core.entity.annotations.AnnoField;
+
+/** 
+ * 说明： 代理区实体
+ * 创建人：cjh
+ * 创建时间：2017-10-24
+ * @version
+ */
+@SuppressWarnings("serial")
+@Entity
+@Table(name="T_YW_PROXYAREA")
+@AnnoEntity(caption="代理区")
+public class ProxyArea extends BusinessLongIdEntity {
+
+	@Column(length=255)
+	@AnnoField(caption="名称")
+	@Size(max=255)
+	private String name;
+	
+	@Column(length=255)
+	@AnnoField(caption="代理编号")
+	@Size(max=255)
+	private String proxyCode;
+	
+	@Column(length=500)
+	@AnnoField(caption="权限集")
+	@Size(max=500)
+	private String auths;
+	
+	@Column(nullable=false, columnDefinition=("CHAR(1) default 1"))
+	@AnnoField(caption="启用状态")
+	private boolean state;
+	
+	@Column(length=255)
+	@AnnoField(caption="管理员")
+	@Size(max=255)
+	private String managerId;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name="managerId",insertable = false, updatable = false)
+	private Member manager;
+	
+	public ProxyArea(){}
+	
+	public void setName(String name){
+		this.name = name;
+	}
+	public String getName(){
+		return this.name;
+	}
+	
+	public String getProxyCode() {
+		return proxyCode;
+	}
+
+	public void setProxyCode(String proxyCode) {
+		this.proxyCode = proxyCode;
+	}
+
+	public void setAuths(String auths){
+		this.auths = auths;
+	}
+	public String getAuths(){
+		return this.auths;
+	}
+	
+	public void setState(boolean state){
+		this.state = state;
+	}
+	public boolean getState(){
+		return this.state;
+	}
+	
+	public void setManagerId(String managerId){
+		this.managerId = managerId;
+	}
+	public String getManagerId(){
+		return this.managerId;
+	}
+
+	public Member getManager() {
+		return manager;
+	}
+
+	public void setManager(Member manager) {
+		this.manager = manager;
+	}
+
+	
+	
+}

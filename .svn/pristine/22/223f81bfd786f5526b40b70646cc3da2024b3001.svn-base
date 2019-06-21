@@ -1,0 +1,76 @@
+package com.ybt.web.controller.manager;
+
+import java.util.Date;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.ProxyArea;
+import com.ybt.base.service.IProxyAreaService;
+import com.ybt.base.service.IUrlAuthorityService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.Constants;
+
+@Controller
+@RequestMapping(value="/manager/proxy")
+public class ProxyManagerController extends SimpleController {
+
+	@Resource
+	private IProxyAreaService proxyAreaService;
+	
+	@Resource
+	private IUrlAuthorityService urlAuthorityService;
+	
+	
+	@RequestMapping(value="list",description="代理列表")
+	public ModelAndView list(String mtype,Date startDate,Date endDate){		
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/proxy/list");
+		return mv;		
+	}
+	
+	@RequestMapping(value="pageFromProxy",description="代理加载列表")
+	public ModelAndView pageFromProxy(String mtype,Date startDate,Date endDate,int currentPage){
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/proxy/load");
+		ListPropertyFilter filters = ListPropertyFilter.getInstance();
+		if(startDate!=null){
+			filters.addFilter("addTime", startDate,MatchType.GE);
+			mv.addObject("startDate",startDate);
+		}
+		if(endDate!=null){
+			filters.addFilter("addTime", endDate,MatchType.LE);
+			mv.addObject("endDate",endDate);
+		}
+		
+		Page<ProxyArea> page=new Page<ProxyArea>();
+		page.setCurrentPage(currentPage);
+		page.setPageSize(10);
+		page.setOrderBy("addTime");
+		page.setOrder("desc");
+		//List<Message> list = messageService.findByFilters(filters);	
+		page=proxyAreaService.findPagesByFilters(page, filters);
+		mv.addObject("page", page);
+		return mv;
+	}
+	
+	@RequestMapping(value="create",description="创建代理")
+	public ModelAndView create(String mtype,Date startDate,Date endDate){		
+		ModelAndView mv = new ModelAndView();
+		mv.setViewName("manager/proxy/create");
+		return mv;		
+	}
+	
+	
+	@RequestMapping(value="save",description="保存代理")
+	public ModelAndView save(String mtype,Date startDate,Date endDate){		
+		ModelAndView mv = new ModelAndView(Constants.REDIRECT+"/manager/proxy/list.htm");
+		return mv;		
+	}
+}

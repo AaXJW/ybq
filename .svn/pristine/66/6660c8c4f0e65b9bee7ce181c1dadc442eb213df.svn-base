@@ -1,0 +1,71 @@
+package com.ybt.web.controller.manager;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import com.jiufengxinxi.core.query.ListPropertyFilter;
+import com.jiufengxinxi.core.query.Page;
+import com.jiufengxinxi.core.query.PropertyFilter.MatchType;
+import com.ybt.base.entity.Member;
+import com.ybt.base.service.IMemberService;
+import com.ybt.web.controller.base.SimpleController;
+import com.ybt.web.util.JpaWebUtils;
+import com.ybt.web.util.UserUtil;
+
+@Controller
+@RequestMapping(value="/manager/user/")
+public class UserManagerController extends SimpleController {
+
+	@Resource
+	private IMemberService memberService;
+	
+	@RequestMapping(value="createUser")
+	public String createUser(){
+		return "manager/user/createUser";
+	} 
+	
+	@RequestMapping(value="saveUser")
+	public String saveUser(HttpServletRequest request, HttpServletResponse response, RedirectAttributes redirectAttributes,Member member,String vcode,String repaypassword,String relgpassword){
+		member.setAddUserId("system");
+		if(UserUtil.getCurrentUser(request)!=null){
+			member.setAddUserId(UserUtil.getCurrentUser(request).getId());
+			member.setProxyArea(UserUtil.getCurrentUser(request).getProxyArea());//设置代理区
+		}
+		return UserUtil.createUser(request, response, redirectAttributes, member, vcode, repaypassword, relgpassword, true, "/manager/user/createUser.htm", "/manager/index.htm");
+	}
+	
+	@RequestMapping(value="listUser")
+	public ModelAndView listUser(String filter_LIKE_name_OR_tel){
+		ModelAndView mv=new ModelAndView();
+		mv.setViewName("manager/user/userList");
+		mv.addObject("filter_LIKE_name_OR_tel", filter_LIKE_name_OR_tel);
+		return mv;
+	}
+	
+	@RequestMapping(value="loadMoreUser")
+	public ModelAndView loadMoreUser(HttpServletRequest request,Page<Member> page){
+		ModelAndView mv=new ModelAndView();
+		ListPropertyFilter lft=JpaWebUtils.buildPropertyFilters(request);
+		Member member=UserUtil.getCurrentUser(request);
+		if(member.getProxyArea()!=null){
+			lft.addFilter("proxyArea", member.getProxyArea(), MatchType.EQ);
+		}else{
+			lft.addFilter("proxyArea", MatchType.ISNULL);
+		}
+		lft.addFilter("admin", false, MatchType.EQ);
+		if(page!=null){
+			page.setOrderBy("addTime");
+		}
+		page=memberService.findPagesByFilters(page, lft);
+		mv.addObject("page", page);
+		mv.setViewName("manager/user/loadForUser");
+		return mv;
+	}
+	
+}

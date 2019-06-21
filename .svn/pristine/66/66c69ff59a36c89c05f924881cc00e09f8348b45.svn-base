@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-module
+  type="WEB"
+  name="ybt-webapp"
+  id="myeclipse.1462590195091"
+  context-root="/DataParsing"
+  j2ee-spec="6.0"
+  archive="ybt-webapp.war">
+  <attributes>
+    <attribute name="webrootdir" value="src/main/webapp" />
+  </attributes>
+</project-module>
+

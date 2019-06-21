@@ -1,0 +1,214 @@
+package com.ybt.base.service.impl;
+
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.jiufengxinxi.core.exception.BusinessException;
+import com.jiufengxinxi.core.service.impl.GeneralServiceImpl;
+import com.jiufengxinxi.utils.MD5;
+import com.ybt.base.dao.IMemberDao;
+import com.ybt.base.entity.Member;
+import com.ybt.base.entity.Parameters;
+import com.ybt.base.entity.TerritoryArea;
+import com.ybt.base.service.IApprovalService;
+import com.ybt.base.service.IMemberService;
+import com.ybt.base.service.ITerritoryAreaService;
+import com.ybt.base.service.ITerritoryService;
+import com.ybt.base.utill.SystemParameters;
+import com.ybt.web.util.QrCodeCreateUtil;
+import com.ybt.web.util.UserUtil;
+
+@Service
+@Transactional
+public class MemberService extends GeneralServiceImpl<Member, IMemberDao> implements IMemberService{
+	
+	@Resource
+	private ITerritoryService territoryService;
+
+	@Resource
+	private IApprovalService approvalService;
+	
+	@Resource
+	private ITerritoryAreaService territoryAreaService;
+	
+	@Override
+	public Member getMemberByTel(String tel) {
+		Map<String,Object> param=new HashMap<String,Object>();
+		param.put("tel", tel);
+		param.put("deleteStatus", false);
+		return findUniqueByProperty(param);
+	}
+
+	@Override
+	public List<Object> competeUser(String areaTop) {
+		String sql="SELECT t.tel,t.name FROM T_YW_MEMBER t WHERE t.areaTop = ?1 and (t.territoryState=2 OR t.id IN (SELECT e.memberId FROM T_YW_TERRITORY e WHERE e.state IN (1,2,3) AND e.recommendCount = 2)) and t.tel Not in (SELECT e.placeholderTel FROM T_YW_TERRITORY e WHERE e.placeholderTel is not null and e.state = 0)";
+		return nativeQuery(sql,new Object[]{areaTop});
+	}
+	
+	public boolean isCanCompete(String userid){
+		String sql="SELECT count(*) from T_YW_MEMBER e WHERE e.id=?1 and (e.territoryState=2 OR e.id IN (SELECT c.memberId FROM T_YW_TERRITORY c WHERE c.state IN (1,2,3) AND c.recommendCount = 2)) AND e.tel NOT IN (SELECT b.placeholderTel FROM T_YW_TERRITORY b WHERE b.placeholderTel IS NOT NULL AND b.state = 0)";
+	
+		return getNativeCount(sql, new Object[]{userid})>0;
+	}
+
+	@Override
+	public Member save(Member entity) {
+		entity.setModifyTime(new Date());
+		UserUtil.userChange(entity);
+		return super.save(entity);
+	}
+
+	@Override
+	public long getCountUserByrecommendertel(String recommendertel) {		
+		return this.getCount("where e.recommendertel=?1 and e.state = 1", new Object[]{recommendertel});
+	}
+	
+	
+	public String registor(Member member,boolean adminOprate,String newType,String addUserId){
+		
+		synchronized (member.getTel()) {
+			if(StringUtils.isEmpty(member.getTel())){
+				throw new BusinessException("手机号不能为空");
+			}
+			member.setTel(member.getTel().trim());
+			
+			if(!isUnique(null, "tel", member.getTel())){
+				throw new BusinessException("手机号已被使用");
+			}
+			
+//			if(StringUtils.isEmpty(member.getIdNumber())){
+//				throw new BusinessException("身份证号不能为空");
+//			}
+//			
+//			if(!isUnique(null, "idNumber", member.getIdNumber())){
+//				throw new BusinessException("身份证号已被使用");
+//			}
+			
+			if(StringUtils.isEmpty(member.getLgpassword())){
+				throw new BusinessException("登录密码不能为空");
+			}
+			
+			if(StringUtils.isEmpty(member.getPaypassword())){
+				throw new BusinessException("二级密码不能为空");
+			}
+			
+//			if(StringUtils.isEmpty(member.getAccount())){
+//				throw new BusinessException("银行卡账号不能为空");
+//			}
+			
+			if(!adminOprate){
+				if(StringUtils.isEmpty(member.getRecommendertel())){
+					throw new BusinessException("推荐人不能为空");
+				}
+				
+				Member recom=findUniqueByProperty("tel", member.getRecommendertel());
+				
+				if(recom==null){
+					throw new BusinessException("推荐人手机号不存在");
+				}
+				
+				member.setRecommendertels((StringUtils.isNotEmpty(recom.getRecommendertels())?recom.getRecommendertels():recom.getTel())+","+member.getTel());
+				member.setRecommendertel(recom.getTel());
+				member.setRecommenderId(recom.getId());
+				member.setRecommenderName(recom.getName());
+				member.setAreaTop(recom.getAreaTop());
+				member.setProxyArea(recom.getProxyArea());//设置代理区
+			}else{
+				member.setAreaTop(member.getTel());
+			}
+			
+			Parameters parameters=SystemParameters.SYSTEM_PARAMETER;
+			
+			member.setLgpassword(MD5.md5(member.getLgpassword()));
+			member.setPaypassword(MD5.md5(member.getPaypassword()));
+			
+			String levelName=parameters.getLevels().get(member.getLevels()).getLevelName();
+			
+			double levelFee=parameters.getLevels().get(member.getLevels()).getLevelPrice();
+			
+			member.setLevelsName(levelName);
+			member.setLevelsFee(levelFee);
+			
+			member.setUserQRCode(QrCodeCreateUtil.generalQRCode(SystemParameters.BASE_URL+"register.htm?recommendertel="+member.getTel(), SystemParameters.BaseRealPath,"/upload/qrcode"));
+			member.setState(0);
+			member.setAddTime(new Date());
+			
+			try{
+				member.setPlateId("1");
+				
+				if(StringUtils.isEmpty(member.getAddUserId())){
+					member.setAddUserId(addUserId);
+				}
+				member=save(member);
+				boolean isCompete=StringUtils.isNotEmpty(newType)&&newType.equals("1");
+				if(isCompete){
+					if(territoryService.compete(member.getId())){
+						return "抢位成功，待 "+member.getTel()+" 完成申请后您将得到本次抢单奖金";
+					}else{
+						throw new BusinessException("您手太慢啦！抢位失败，但是您推荐的 "+member.getTel()+" 已经完成注册");
+					}
+					
+				}else{
+					
+					TerritoryArea territoryArea=territoryAreaService.getDefault(member.getProxyArea());
+					
+					if(territoryArea==null) {
+						throw new BusinessException("审核失败,没有默认的团购区");
+					}
+					
+					boolean result = approvalService.applyApproval(member, 0,territoryArea.getId(), levelFee,(isCompete?member.getRecommendertel()+"推荐的用户":null));
+					if(!result){
+						throw new BusinessException("保存审核记录失败");
+					}
+					return "注册成功";
+				}
+				
+			}catch (Exception e) {
+				throw new BusinessException("注册失败");
+			}finally{
+				try{
+					this.getDefaultDAO().getEntityManager().flush();
+					this.getDefaultDAO().getEntityManager().clear();
+				}catch(Exception ex){
+					ex.printStackTrace();
+				}
+				
+			}
+			
+			
+		}
+		
+	}
+	
+	
+	public void cancelMember(String id){
+		Member member=this.findById(id);
+		cancelMember(member);
+	}
+	
+	public void cancelMember(Member member){
+		member.setDeleteStatus(true);
+		member.setTel(member.getTel()+"_cancel");
+		member.setIdNumber(member.getIdNumber()+"_cancel");
+		//member.set
+		this.getDefaultDAO().save(member);
+	}
+	
+	/*public Long countMember(String hql,Object[] param){
+		Long integral=0L;
+		List list=this.query(hql, param);
+		if(list!=null&&list.size()>0&&list.get(0)!=null){
+			integral=Long.parseLong(list.get(0).toString());
+		}
+		return integral;
+	}*/
+
+}

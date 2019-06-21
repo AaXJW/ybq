@@ -1,0 +1,159 @@
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ include file="/WEB-INF/jsp/taglibs.jsp" %>
+
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+  <head>
+    <title>登录</title>
+    
+    <script src="${ctx}/plugins/bootstrapValidator/js/bootstrapValidator.min.js"></script>
+	
+	<link href="${ctx}/plugins/bootstrapValidator/css/bootstrapValidator.min.css" rel="stylesheet" />
+    
+    <link href="${ctx}/static/style/login.css" rel="stylesheet" />
+    
+    
+    <script>
+    	function refreshCode(){
+    		$("#vmcode").attr("src","${ctx}/code.htm?t="+new Date().getTime());
+    	}
+    	
+    	$(function(){
+			$("#inputForm").bootstrapValidator({
+				submitHandler: function (validator, form, submitButton) {
+	                alert("submit");
+	            }
+			}).on("success.form.bv",function(e){
+					//$("#submitBTN").button('loading');
+					$("#loading-icon").show();
+					$("#words-icon").hide();
+				});
+			$("input[name='login-regist']").change(function(){
+				top.location="${ctx}/register.htm";
+			});
+			var uag=window.navigator.userAgent;
+			if(uag.indexOf("iPhone")>=0&&uag.indexOf(" ",uag.indexOf("Mobile/"))<0){
+				$(".navbar-fixed-top").css({top:"20px"});
+				$("body").append("<div style='width:100%;height:20px;position:fixed;top:0px;left:0px;background-color:#e95420;'></div>");
+			}
+
+			var uag=window.navigator.userAgent;
+			if(uag.indexOf("iPhone")>=0&&uag.indexOf(" ",uag.indexOf("Mobile/"))<0){//hidden
+				$("#appLink").addClass("hidden");
+			}
+			
+    	});
+
+    	function chL(){
+    		$("#inputForm").attr("action","${ctx}/loging.htm");
+       	}
+
+    	function foundPass(){
+			var tel=$("#tel").val();
+			if(!tel){
+				$.alertWarning("请先填写手机号！");
+				return;	
+			}
+			top.location="${ctx }/personal/question.htm?tel="+tel;
+			
+        }
+    </script>
+  </head>
+  
+  <body class="no-skin">
+  		<%--<div class="login_backmark">
+  			<div class="login_mark"></div>
+  		</div>
+  		--%>
+  		<form action="${ctx}/loging.htm" method="post" name="inputForm" id="inputForm" 
+			data-bv-feedbackicons-valid="glyphicon glyphicon-ok"
+		    data-bv-feedbackicons-invalid="glyphicon glyphicon-remove"
+		    data-bv-feedbackicons-validating="glyphicon glyphicon-refresh">
+		    <div class="panel panel-default login-ct" style="margin-top:100px;">
+			  <div class="panel-heading text-center login-head">
+			  	<img class="img-circle logo" height="80" src="${ctx }/static/images/logo.png" />
+			  	<h2><strong>宝易通</strong></h2>
+			  	<h5>www.bao1tong.com</h5>
+			  </div>
+			  
+			  
+			  
+			  <div class="panel-body">
+			  <h4 class="lg-title">用户登录</h4>
+			  	
+			  	<%--<div class="row form-group" style="text-align: center;">
+	  				<div class="btn-group" data-toggle="buttons">
+					  <label class="btn btn-success active">
+					    <input type="radio" name="login-regist" id="login-regist1" autocomplete="off" checked> 登录
+					  </label>
+					  <label class="btn btn-success">
+					    <input type="radio" name="login-regist" id="login-regist2" autocomplete="off"> 注册
+					  </label>
+					</div>
+	  			</div>
+			  
+			  
+			    --%>
+			    <%--<c:if test="${not empty message}">
+					<div class="alert alert-danger alert-dismissible" role="alert">
+					  ${message}
+					  <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true"></span></button>
+					</div>
+				</c:if>
+			    
+			    --%><div class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="tel" name="tel" placeholder="请输入您的手机号" value="${tel}"
+						required data-bv-notempty-message="手机号不能为空" aria-describedby="basic-addon1">
+					  <span class="input-group-addon" id="basic-addon1"><i class="glyphicon glyphicon-user"></i></span>
+					</div>
+	  			</div>
+				
+				<div class="row form-group">
+					<div class="input-group">
+					  <input type="password" id="password" name="password" class="form-control" placeholder="请输入登录密码"
+				      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+				 		required data-bv-notempty-message="登录密码不能为空" id="basic-addon2">
+				 		<span class="input-group-addon" id="basic-addon2"><i class="icon-key"></i></span>
+					</div>
+				</div>
+				
+				<div class="row form-group vcode-group">
+					<div class="input-group">
+					  <input type="text" class="form-control" placeholder="验证码不能为空"
+						required data-bv-notempty-message="请输入验证码" id="vcode" name="vcode" aria-describedby="basic-addon3" onfocus="chL()">
+					  <span class="input-group-addon" id="basic-addon3" style="padding: 0;border-left: none;"><img id="vmcode" height="30" src="${ctx }/code.htm" onclick="refreshCode()"/></span>
+					  <span class="input-group-btn">
+				        <button class="btn btn-info" type="button" onclick="refreshCode()"><i class="glyphicon glyphicon-refresh"></i></button>
+				      </span>
+					</div>
+				</div>
+				
+				<%--<div class="row form-group" style="margin-bottom: 10px;"> 
+					<button type="submit" class="btn btn-primary col-xs-12"><i class="glyphicon glyphicon-log-in"></i> &nbsp;&nbsp;&nbsp; 登 录</button>
+				</div>
+				
+				--%>
+				<div class="row">
+					<p>
+						<a href="${ctx }/appDownload.htm" id="appLink" class="btn btn-link col-xs-3">宝易通app</a>
+						<a href="javascript:foundPass();" class="btn btn-link col-xs-3 pull-right">忘记密码</a>
+						<%--<a href="${ctx }/register.htm" class="btn btn-link col-xs-6">新用户注册</a>
+					--%>
+					</p>
+				</div>
+			  </div>
+			</div>
+		    
+	  		<!-- <div class="banner-login">
+	  			
+				
+	  		</div> -->
+	  		<button id="submitBTN" type="submit" class="btn btn-primary col-xs-12 submit" autocomplete="off">
+	  			<span id="words-icon"><i class="icon-circle-arrow-right icon-2x"></i></span>
+	  			<span id="loading-icon" style="display: none;"><i class="icon-spinner icon-spin icon-2x"></i></span>
+	  		</button>
+  		</form>
+  		
+  </body>
+</html>

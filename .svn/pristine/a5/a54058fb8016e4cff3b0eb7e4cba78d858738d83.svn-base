@@ -1,0 +1,156 @@
+<%@ page language="java" import="java.util.*" pageEncoding="utf-8"%>
+<%@ include file="/WEB-INF/jsp/taglibs.jsp" %>
+	
+<!DOCTYPE HTML>
+<html lang="zh-CN">
+	<head>
+		<title>代理编辑</title>  
+		<backurl>${ctx }/manager/territoryArea/list.htm</backurl>
+		<script src="${ctx}/plugins/bootstrapValidator/js/bootstrapValidator.min.js"></script>
+		
+		<link href="${ctx}/plugins/bootstrapValidator/css/bootstrapValidator.css" rel="stylesheet" />
+		
+		<link href="${ctx}/static/style/register.css" rel="stylesheet" />
+	</head>
+	
+	<body>
+		<form action="${ctx}/manager/territoryArea/save.htm" method="post" name="inputForm" id="inputForm" 
+			data-bv-feedbackicons-valid="glyphicon glyphicon-ok"
+		    data-bv-feedbackicons-invalid="glyphicon glyphicon-remove"
+		    data-bv-feedbackicons-validating="glyphicon glyphicon-refresh">
+		    <input type="hidden" name="territoryAreaid" value="${territoryArea.id}" />
+		    <input type="hidden" name="memberid" value="${member.id}" />
+		    <ul class="list-group">
+			  <li class="list-group-item">
+			  	<h5 class="list-group-item-heading text-muted"> 代理：</h5>
+			  	<div id="nameCT" class="row form-group">
+	  				<div class="input-group" >
+					  <input type="text" class="form-control" id="name" name="name" placeholder="请输入代理名称" value="${territoryArea.name }"
+						required data-bv-notempty="true" data-bv-notempty-message="代理名称不能为空" aria-describedby="basic-addon1" />
+					  <span class="input-group-addon" id="basic-addon1"><i class="glyphicon glyphicon-link"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="territoryAreaCodeCT" class="row form-group">
+	  				<div class="input-group" >
+					  <input type="text" class="form-control" id="territoryAreaCode" name="territoryAreaCode" placeholder="请输入代理编号" value="${territoryArea.territoryAreaCode }"
+						required data-bv-notempty="true" data-bv-notempty-message="代理编号不能为空" aria-describedby="basic-addon2" 
+						<c:if test="${!empty territoryArea.id }">disabled="disabled"</c:if>
+						data-bv-remote="true" data-bv-remote-url="${ctx}/manager/territoryArea/hasterritoryAreaCode.htm?id=${entity.id}" data-bv-remote-message="代理编号已经被使用"/>
+					  <span class="input-group-addon" id="basic-addon2"><i class="glyphicon glyphicon-unchecked"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="enableCT" class="row form-group">
+	  				<div class="input-group" >
+	  					<select class="form-control" name="state" id="state">
+	  						<option value="false" >停用</option>
+	  						<option value="true" >启用</option>
+	  					</select>
+					  <span class="input-group-addon" id="basic-addon1"><i class="glyphicon glyphicon-link"></i></span>
+					</div>
+	  			</div>
+			  </li>
+			  
+			  <li class="list-group-item">
+			  	<h5 class="list-group-item-heading text-muted"> 代理人：</h5>
+			  	
+			  	<div id="telDiv" class="row form-group">
+	  				<div id="telCT" >
+		  				<div class="input-group">
+						  <input type="text" class="form-control" id="tel" name="tel" placeholder="请输入代理人手机号" value="${member.tel }"
+							required data-bv-notempty-message="手机号不能为空" aria-describedby="basic-addon2"
+							data-bv-phone="true" data-bv-phone-country="CN" data-bv-phone-message="输入不是有效的手机号 " data-bv-threshold="11"
+						  data-bv-remote="true" data-bv-remote-url="${ctx}/hasMUT.htm" data-bv-remote-message="该手机号已被使用"
+						  <c:if test="${!empty territoryArea.id }">disabled="disabled"</c:if>/>
+						  <span class="input-group-addon" id="basic-addon2"><i class="icon-mobile-phone"></i></span>
+						</div>
+					</div>
+	  			</div>
+	  			
+	  			<c:if test="${empty territoryArea.id }">
+	  				<div id="lgpasswordCT" class="row form-group">
+						<div class="input-group">
+						  <input type="password" id="lgpassword" name="lgpassword" class="form-control" placeholder="请输入登录密码"
+					      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+					 		required data-bv-notempty-message="登录密码不能为空" id="basic-addon4">
+					 		<span class="input-group-addon" id="basic-addon4"><i class="icon-key"></i></span>
+						</div>
+					</div>
+					
+					<div id="relgpasswordCT" class="row form-group">
+						<div class="input-group">
+						  <input type="password" id="relgpassword" name="relgpassword" class="form-control" placeholder="请确认登录密码"
+					      	data-bv-stringlength="true" data-bv-stringlength-min="6" data-bv-stringlength-max="30" data-bv-stringlength-message="密码须为%s-%s个字符 "
+					 		required data-bv-notempty-message="确认登录密码不能为空"
+					 		data-bv-identical="true" data-bv-identical-field="lgpassword" data-bv-identical-message="确认密码与登录密码不一样 "
+	                            		data-bv-different="true" data-bv-different-field="tel" data-bv-different-message="密码不能与手机号相同" id="basic-addon5">
+					 		<span class="input-group-addon" id="basic-addon5"><i class="icon-key"></i></span>
+						</div>
+					</div>
+	  			</c:if>
+	  			
+	  			<div id="quesionCT" class="row form-group">
+	  				<div class="input-group">
+	  					<select name="question" id="question" class="selectpicker form-control" data-width="auto" title="请选择一个问题" required data-bv-notempty-message="请选择一个密保问题" aria-describedby="basic-addon9">
+	  						<c:choose>
+								 <c:when test="${not empty SYSTEM_PARAM}"> 
+								 	<c:forEach items="${SYSTEM_PARAM.quesion }" var="var" varStatus="vs">
+								 		<c:choose>
+								 			<c:when test="${var==member.question}">
+								 				<option selected="selected">${var}</option>
+								 			</c:when>
+								 			<c:otherwise>
+								 				<option>${var}</option>
+								 			</c:otherwise>
+								 		</c:choose>			  							
+			  						<</c:forEach>
+			  						</c:when>
+										<c:otherwise>
+											<!-- 暂无问题 -->
+										</c:otherwise>
+								</c:choose>
+	  					</select>
+					  <span class="input-group-addon" id="basic-addon9"><i class="icon-question-sign"></i></span>
+					</div>
+	  			</div>
+	  			
+	  			<div id="answerCT" class="row form-group">
+	  				<div class="input-group">
+					  <input type="text" class="form-control" id="answer" name="answer" placeholder="请输入密保答案" value="${member.answer}"
+						required data-bv-notempty-message="密保答案不能为空" aria-describedby="basic-addon11">
+					  <span class="input-group-addon" id="basic-addon11"><i class="icon-book"></i></span>
+					</div>
+	  			</div>
+			  </li>
+			  
+			  <li class="list-group-item form-group">
+			  	<h5 class="list-group-item-heading text-muted"> 权限：</h5>
+			  	<div id="answerCT" class="row form-group ztree">
+	  				<div id="tree" style="margin-left: 20px;"></div>
+	  				<input type="text" name="auths" id="auths" value="${territoryArea.auths }" required data-bv-notempty-message="请为此代理配置权限" class="form-control pull-left" style="filter:alpha(Opacity=0);-moz-opacity:0;opacity: 0;" />
+	  			</div>
+			  </li>
+			  
+			</ul>
+		    
+		    <button type="submit" class="btn btn-success col-xs-6">
+		  		保存
+		  	</button>
+		  	
+		  	<a  class="btn btn-primary col-xs-6" href="${ctx}/manager/territoryArea/list.htm">
+		  		返回
+		  	</a>
+		    
+	    </form>
+	    <script>
+			
+			$("#state").val("${territoryArea.state}");
+			
+			$(function(){
+				$("#inputForm").bootstrapValidator();
+			});
+		</script>
+	</body>
+
+</html>
